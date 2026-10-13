@@ -7,7 +7,7 @@ import { BrainPanel } from "@/components/BrainPanel";
 import { MatrixBackground } from "@/components/MatrixBackground";
 import type { BrainVerdict } from "@/lib/brain-providers";
 import { runsSignal } from "@/lib/runs";
-import { analyzePatterns } from "@/lib/patterns";
+import { analyzePatterns, patternSetup } from "@/lib/patterns";
 import { Journal } from "@/components/Journal";
 import { Profiles } from "@/components/Profiles";
 
@@ -117,18 +117,11 @@ function Dashboard() {
   const sig = kindSignal(kind, prices, decimals, { digit, offset, hi, lo, ticks: ticksEq, sensitivity });
   const directional = ["RUNS", "RISE_FALL", "HIGHER_LOWER", "ASIANS", "RESET", "MULT"].includes(kind);
   const pat = directional ? analyzePatterns(prices, sensitivity) : null;
-  if (pat && pat.side !== null) {
-    const names = pat.hits.filter((h) => h.bias === pat.side).sort((a, b) => b.weight - a.weight).slice(0, 3).map((h) => h.name).join(", ");
-    if (sig.side === null || sig.side !== pat.side && pat.confidence > sig.confidence) {
-      sig.side = pat.side; sig.confidence = pat.confidence;
-      sig.note = `Pattern engine: ${names} (score ${pat.score.toFixed(1)}, trend ${pat.trend})`;
-    } else if (sig.side === pat.side) {
-      sig.confidence = Math.min(99, Math.max(sig.confidence, pat.confidence) + 10);
-      sig.note = `Confluence — ${names} + ${sig.note}`;
-    }
-  }
-  // Hybrid fallback: when nothing qualifies, follow raw tick momentum so orders are never blocked.
-  if (sig.side === null && prices.length > 4) {
+  const setup = directional ? patternSetup(prices, sensitivity) : null;
+  // Directional contracts trade ONLY the single trend-confirmed pattern setup.
+  if (setup) { sig.side = setup.side; sig.confidence = setup.confidence; sig.note = setup.note; }
+  // Non-directional contracts: fall back to momentum so orders are not blocked.
+  if (!directional && sig.side === null && prices.length > 4) {
     const m = prices[prices.length - 1]! - prices[prices.length - 4]!;
     sig.side = m >= 0 ? 0 : 1;
     sig.note = `Momentum mode (${m >= 0 ? "up" : "down"} over last 3 ticks) — ${sig.note}`;
@@ -586,7 +579,7 @@ function Dashboard() {
         </section>
         {pat && (
           <section className="glass space-y-2 rounded-sm p-4">
-            <h2 className="font-mono font-semibold text-primary">&gt;_ pattern.scan <span className="text-xs text-muted-foreground">trend {pat.trend} · score {pat.score.toFixed(1)}</span></h2>
+            <h2 className="font-mono font-semibold text-primary">&gt;_ pattern.scan <span className="text-xs text-muted-foreground">trend {pat.trend} · score {pat.score.toFixed(1)}{setup && <> · setup {Object.entries(setup.checks).map(([k, v]) => `${v ? "✓" : "✗"}${k}`).join(" ")}</>}</span></h2>
             {pat.hits.length === 0 && <p className="font-mono text-xs text-muted-foreground">No patterns on the latest candles.</p>}
             <div className="max-h-60 space-y-0.5 overflow-auto font-mono text-xs">
               {pat.hits.map((h) => (
