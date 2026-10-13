@@ -355,7 +355,7 @@ function Dashboard() {
         </div>
       </header>
 
-      <main className="mx-auto grid max-w-7xl gap-4 p-4 lg:grid-cols-3">
+      <main className="mx-auto grid max-w-7xl grid-cols-1 [&>*]:min-w-0 gap-4 p-4 lg:grid-cols-3">
         <section className="space-y-3 glass rounded-sm p-4">
           <h2 className="font-semibold">Deriv connection</h2>
           <label className="block text-xs text-muted-foreground">App ID
