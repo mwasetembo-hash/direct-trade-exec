@@ -4,7 +4,7 @@ import { DerivClient, computeSignal, fetchAccounts, fetchOtpUrl, type DerivAccou
 import { CATALOG, CONTRACTS, digitStats, groupOf, kindSignal, trendStrength, type Inst, type Kind } from "@/lib/contracts";
 import { DiagnosePanel } from "@/components/DiagnosePanel";
 import { BrainPanel } from "@/components/BrainPanel";
-import { CosmicBackground } from "@/components/CosmicBackground";
+import { MatrixBackground } from "@/components/MatrixBackground";
 import type { BrainVerdict } from "@/lib/brain-providers";
 import { runsSignal } from "@/lib/runs";
 import { Journal } from "@/components/Journal";
@@ -54,7 +54,7 @@ function Dashboard() {
   const [offset, setOffset] = useState(0.5);
   const [hi, setHi] = useState(0.5);
   const [lo, setLo] = useState(-0.5);
-  const [minConf, setMinConf] = useState(60);
+  const [minConf, setMinConf] = useState(0);
   const [sensitivity, setSensitivity] = useState(3);
   const [cooldown, setCooldown] = useState(0);
   const [selectedTick, setSelectedTick] = useState(3);
@@ -114,6 +114,12 @@ function Dashboard() {
   const wins = settled.filter((t) => (t.profit ?? 0) > 0).length;
   const ticksEq = unit === "t" ? duration : unit === "s" ? duration / 2 : duration * 30;
   const sig = kindSignal(kind, prices, decimals, { digit, offset, hi, lo, ticks: ticksEq, sensitivity });
+  // Hybrid fallback: when the filter finds no clean setup, follow raw tick momentum so orders are never blocked.
+  if (sig.side === null && prices.length > 4) {
+    const m = prices[prices.length - 1]! - prices[prices.length - 4]!;
+    sig.side = m >= 0 ? 0 : 1;
+    sig.note = `Momentum mode (${m >= 0 ? "up" : "down"} over last 3 ticks) — ${sig.note}`;
+  }
   const runs = kind === "RUNS" ? runsSignal(prices, duration, sensitivity) : null;
   const ctAvailable = (t: string) => !available || available.has(t);
   const base = computeSignal(prices);
@@ -298,8 +304,8 @@ function Dashboard() {
     if (!account?.isVirtual) { setAuto(false); addLog("Stopped: autopilot runs on DEMO accounts only"); return; }
     if (Date.now() - lastSettle.current < cooldown * 1000) return;
     const wait = (why: string) => { if (Date.now() - lastWaitLog.current > 15000) { lastWaitLog.current = Date.now(); addLog(`Waiting: ${why}`); } };
-    if (sig.side === null) return wait(sig.note);
-    if (sig.confidence < minConf) return wait(`confidence ${sig.confidence}% below your minimum ${minConf}%`);
+    if (sig.side === null) return wait("collecting ticks");
+    if (minConf > 0 && sig.confidence < minConf) return wait(`confidence ${sig.confidence}% below your minimum ${minConf}%`);
     if (brainGate && (!brain || brain.side !== sig.side)) return wait("AI Brain does not agree yet");
     if (mode === "SIDE_A" && sig.side !== 0) return wait(`signal is ${def.sides[1]}, you chose ${def.sides[0]} only`);
     if (mode === "SIDE_B" && sig.side !== 1) return wait(`signal is ${def.sides[0]}, you chose ${def.sides[1]} only`);
@@ -333,10 +339,10 @@ function Dashboard() {
   );
 
   return (
-    <div className="relative isolate min-h-screen font-sans text-foreground">
-      <CosmicBackground />
+    <div className="relative isolate min-h-screen font-mono text-foreground">
+      <MatrixBackground />
       <header className="glass sticky top-0 z-10 flex flex-wrap items-center justify-between gap-3 px-4 py-3">
-        <h1 className="text-glow text-xl font-bold tracking-tight">MWASE <span className="text-primary">DERIV HYBRID</span></h1>
+        <h1 className="text-glow text-xl font-bold tracking-tight"><span className="font-mono">root@mwase:~$</span> <span className="text-primary">HYBRID_EXEC</span><span className="animate-pulse text-primary">_</span></h1>
         <div className="hidden flex-1 justify-center gap-4 font-mono text-xs md:flex">
           <span>EQUITY <b>{balance != null ? balance.toFixed(2) : "—"}</b></span>
           <span>P/L <b className={net >= 0 ? "text-up" : "text-down"}>{net.toFixed(2)}</b></span>
@@ -540,7 +546,7 @@ function Dashboard() {
         </section>
 
         <section className="glass space-y-2 rounded-2xl p-4">
-          <h2 className="font-semibold">Signal ticket</h2>
+          <h2 className="font-mono font-semibold text-primary">&gt;_ signal.ticket</h2>
           {(() => {
             const side = sig.side ?? 0;
             const checks = preflight(side, stake);
@@ -555,11 +561,11 @@ function Dashboard() {
               ["Regime", base.parts.find((p) => p.name === "Market regime")?.detail ?? "—"],
               ["Reason", sig.note],
             ];
-            const ready = sig.side !== null && sig.confidence >= minConf && checks.length === 0;
+            const ready = sig.side !== null && (minConf <= 0 || sig.confidence >= minConf) && checks.length === 0;
             return (
               <>
                 <div className="space-y-0.5 font-mono text-xs">{rows.map(([k, v]) => <div key={k} className="flex justify-between gap-2"><span className="text-muted-foreground">{k}</span><span className="text-right">{v}</span></div>)}</div>
-                <div className={`rounded-md px-2 py-1 text-xs font-semibold ${ready ? "bg-up/20 text-up" : "bg-down/20 text-down"}`}>{ready ? "APPROVED — ready to execute" : "REJECTED — " + (checks[0] ?? (sig.side === null ? "no setup" : "confidence too low"))}</div>
+                <div className={`rounded-md px-2 py-1 text-xs font-semibold ${ready ? "bg-up/20 text-up" : "bg-down/20 text-down"}`}>{ready ? "> ARMED — EXECUTE ON TICK" : "REJECTED — " + (checks[0] ?? (sig.side === null ? "no setup" : "confidence too low"))}</div>
                 {checks.length > 1 && <ul className="list-disc pl-4 text-xs text-down">{checks.slice(1).map((c) => <li key={c}>{c}</li>)}</ul>}
               </>
             );
