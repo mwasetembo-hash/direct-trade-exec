@@ -143,28 +143,29 @@
   }
 }
 
-/* Trading terminal theme (dark, always on) */
+/* Hacker terminal theme (dark, always on) */
 :root {
-  --background: oklch(0.16 0.02 250);
-  --foreground: oklch(0.95 0.01 250);
-  --card: oklch(0.2 0.025 250);
-  --card-foreground: oklch(0.95 0.01 250);
-  --popover: oklch(0.2 0.025 250);
-  --popover-foreground: oklch(0.95 0.01 250);
-  --primary: oklch(0.78 0.16 75);
-  --primary-foreground: oklch(0.18 0.02 250);
-  --secondary: oklch(0.26 0.03 250);
-  --secondary-foreground: oklch(0.95 0.01 250);
-  --muted: oklch(0.25 0.025 250);
-  --muted-foreground: oklch(0.8 0.03 250);
-  --accent: oklch(0.28 0.03 250);
-  --accent-foreground: oklch(0.95 0.01 250);
-  --destructive: oklch(0.62 0.22 25);
-  --border: oklch(0.4 0.04 250);
-  --input: oklch(0.3 0.03 250);
-  --ring: oklch(0.78 0.16 75);
-  --up: oklch(0.8 0.22 150);
-  --down: oklch(0.7 0.24 25);
+  --background: oklch(0.12 0.015 150);
+  --foreground: oklch(0.92 0.12 150);
+  --card: oklch(0.16 0.03 150);
+  --card-foreground: oklch(0.92 0.12 150);
+  --popover: oklch(0.16 0.03 150);
+  --popover-foreground: oklch(0.92 0.12 150);
+  --primary: oklch(0.86 0.25 145);
+  --primary-foreground: oklch(0.12 0.02 150);
+  --secondary: oklch(0.2 0.04 150);
+  --secondary-foreground: oklch(0.92 0.12 150);
+  --muted: oklch(0.2 0.03 150);
+  --muted-foreground: oklch(0.7 0.1 150);
+  --accent: oklch(0.22 0.05 150);
+  --accent-foreground: oklch(0.92 0.12 150);
+  --destructive: oklch(0.65 0.24 25);
+  --border: oklch(0.55 0.15 150 / 45%);
+  --input: oklch(0.25 0.06 150);
+  --ring: oklch(0.86 0.25 145);
+  --up: oklch(0.86 0.25 145);
+  --down: oklch(0.68 0.25 20);
+  --radius: 0.25rem;
 }
 @theme inline {
   --color-up: var(--up);
@@ -173,12 +174,12 @@
   --font-mono: "JetBrains Mono", ui-monospace, monospace;
 }
 
-html, body { background: #02030d; }
+html, body { background: var(--background); }
 @utility glass {
   background: color-mix(in oklch, var(--card) 38%, transparent);
   backdrop-filter: blur(6px) saturate(130%);
   border: 1px solid color-mix(in oklch, var(--primary) 22%, transparent);
-  box-shadow: 0 10px 40px -10px oklch(0.5 0.2 260 / 0.45), inset 0 1px 0 oklch(1 0 0 / 0.06);
+  box-shadow: 0 0 24px -8px color-mix(in oklch, var(--primary) 45%, transparent), inset 0 0 0 1px color-mix(in oklch, var(--primary) 8%, transparent);
 }
 @utility text-glow { text-shadow: 0 0 18px color-mix(in oklch, var(--primary) 70%, transparent); }
 
@@ -186,4 +187,8 @@ html, body { background: #02030d; }
   perspective: 900px;
   & > svg { transform: rotateX(14deg); transform-origin: bottom; filter: drop-shadow(0 12px 18px color-mix(in oklch, var(--up) 35%, transparent)); transition: transform .4s; }
   &:hover > svg { transform: rotateX(4deg); }
+}
+
+@utility scanlines {
+  background-image: repeating-linear-gradient(0deg, color-mix(in oklch, var(--background) 60%, transparent) 0 1px, transparent 1px 3px);
 }
