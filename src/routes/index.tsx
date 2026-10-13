@@ -56,7 +56,7 @@ function Dashboard() {
   const [lo, setLo] = useState(-0.5);
   const [minConf, setMinConf] = useState(60);
   const [sensitivity, setSensitivity] = useState(3);
-  const [cooldown, setCooldown] = useState(8);
+  const [cooldown, setCooldown] = useState(0);
   const [selectedTick, setSelectedTick] = useState(3);
   const [multiplier, setMultiplier] = useState(100);
   const [growthRate, setGrowthRate] = useState(0.01);
@@ -65,7 +65,6 @@ function Dashboard() {
   const [available, setAvailable] = useState<Set<string> | null>(null);
   const lastSettle = useRef(0);
   const lastWaitLog = useRef(0);
-  const [halted, setHalted] = useState(false);
   const [maxLoss, setMaxLoss] = useState(20);
   const [takeProfit, setTakeProfit] = useState(10);
   const [maxTrades, setMaxTrades] = useState(50);
@@ -220,7 +219,6 @@ function Dashboard() {
     if (def.barrier === "digit" && (digit < 0 || digit > 9)) errs.push("Digit must be 0-9");
     if (kind === "RUNS" && !/^(R_|1HZ)/.test(symbol)) errs.push("Only Ups/Downs works on Volatility indices (R_ / 1s)");
     if (prices.length < 20) errs.push("Waiting for live ticks");
-    if (halted) errs.push("Emergency stop is ON");
     return errs;
   };
 
@@ -258,30 +256,13 @@ function Dashboard() {
       }
     };
     try {
-      // Throttle: keep at least 1.2s between order requests
-      const g = globalThis as any;
-      const gap = Date.now() - (g.__lastOrderAt ?? 0);
-      if (gap < 1200) await sleep(1200 - gap);
-      g.__lastOrderAt = Date.now();
-      // 1) Get a quote to validate the contract. 2) Buy that quote. Fallback: direct buy with parameters.
+      // Single-step order: buy directly with parameters (no separate quote step).
       const { proposal: _p, ...params } = req;
       let b: any = null;
-      let firstErr: any = null;
       try {
-        const p = await withBackoff(() => c.send(req));
-        const q = p?.proposal;
-        if (!q?.id) throw new Error(`No valid quote for ${ct} on ${symbol}`);
-        const price = Number(q.ask_price ?? amount);
-        addLog(`Quote ${ct}: ask ${price} payout ${q.payout ?? "—"}`);
-        b = await withBackoff(() => c.send({ buy: q.id, price: Number((price * 1.05 + 0.01).toFixed(2)) }));
+        b = await withBackoff(() => c.send({ buy: 1, price: Number((amount * 1.05 + 0.01).toFixed(2)), parameters: params }));
       } catch (e: any) {
-        firstErr = e;
-        addLog(`Quote route failed (${e.message}) — trying direct order`);
-        try {
-          b = await withBackoff(() => c.send({ buy: 1, price: Number((amount * 1.05 + 0.01).toFixed(2)), parameters: params }));
-        } catch (e2: any) {
-          throw new Error(`${ct} on ${symbol} rejected by Deriv: ${e2.message || firstErr?.message}`);
-        }
+        throw new Error(`${ct} on ${symbol} rejected by Deriv: ${e.message}`);
       }
       const id = Number(b?.buy?.contract_id);
       if (!id) throw new Error("Deriv did not confirm the order");
@@ -331,7 +312,6 @@ function Dashboard() {
   }, [auto, busy, prices.length]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const startAuto = () => {
-    if (halted) { setError("Emergency stop is ON — release it first."); return; }
     if (!account?.isVirtual) { setError("Autopilot is locked to DEMO accounts. Switch to your demo (VRTC) account to run it."); return; }
     curStake.current = stake;
     streak.current = 0;
@@ -584,7 +564,6 @@ function Dashboard() {
               </>
             );
           })()}
-          <button onClick={() => { const h = !halted; setHalted(h); if (h) setAuto(false); addLog(h ? "EMERGENCY STOP engaged" : "Emergency stop released"); }} className={`w-full rounded-md py-2 text-sm font-bold ${halted ? "bg-primary text-primary-foreground" : "bg-down text-primary-foreground"}`}>{halted ? "Release emergency stop" : "EMERGENCY STOP"}</button>
         </section>
         <Profiles settings={settings} onApply={applySettings} onLog={addLog} />
         <Journal trades={trades} />
