@@ -185,27 +185,3 @@ export function analyzePatterns(prices: number[], sensitivity = 3): PatternResul
   const confidence = side === null ? 0 : Math.round(Math.min(95, 40 + (Math.abs(score) / total) * 35 + Math.min(20, Math.abs(score) * 2)));
   return { side, confidence, score, hits, trend: st.trend };
 }
-
-export type Setup = { side: 0 | 1 | null; confidence: number; note: string };
-
-/**
- * The single "Pattern Confluence" setup. Fires only when ALL hold:
- * 1. pattern engine picks a side, 2. structure trend is not against it,
- * 3. at least 2 different pattern groups agree, 4. EMA 9/21/50 aligned with it.
- */
-export function patternSetup(prices: number[], sensitivity = 3): Setup {
-  const r = analyzePatterns(prices, sensitivity);
-  if (prices.length < 60) return { side: null, confidence: 0, note: "Collecting ticks…" };
-  if (r.side === null) return { side: null, confidence: 0, note: `No pattern bias (score ${r.score.toFixed(1)})` };
-  const side = r.side;
-  const dir = side === 0 ? "up" : "down";
-  if (r.trend !== "range" && r.trend !== dir) return { side: null, confidence: 0, note: `Patterns say ${dir} but structure trend is ${r.trend}` };
-  const agree = r.hits.filter((h) => h.bias === side);
-  const groups = new Set(agree.map((h) => h.group));
-  if (groups.size < 2) return { side: null, confidence: 0, note: `Only ${groups.size} pattern group agrees, need 2` };
-  const e9 = ema(prices, 9).at(-1)!, e21 = ema(prices, 21).at(-1)!, e50 = ema(prices, 50).at(-1)!;
-  const aligned = side === 0 ? e9 > e21 && e21 > e50 : e9 < e21 && e21 < e50;
-  if (!aligned) return { side: null, confidence: 0, note: `EMAs not aligned ${dir}` };
-  const names = agree.sort((a, b) => b.weight - a.weight).slice(0, 3).map((h) => h.name).join(", ");
-  return { side, confidence: r.confidence, note: `CONFIRMED ${dir.toUpperCase()} — ${names} (${groups.size} groups, trend ${r.trend})` };
-}

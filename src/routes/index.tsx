@@ -7,7 +7,7 @@ import { BrainPanel } from "@/components/BrainPanel";
 import { MatrixBackground } from "@/components/MatrixBackground";
 import type { BrainVerdict } from "@/lib/brain-providers";
 import { runsSignal } from "@/lib/runs";
-import { analyzePatterns, patternSetup } from "@/lib/patterns";
+import { analyzePatterns } from "@/lib/patterns";
 import { Journal } from "@/components/Journal";
 import { Profiles } from "@/components/Profiles";
 
@@ -117,10 +117,21 @@ function Dashboard() {
   const sig = kindSignal(kind, prices, decimals, { digit, offset, hi, lo, ticks: ticksEq, sensitivity });
   const directional = ["RUNS", "RISE_FALL", "HIGHER_LOWER", "ASIANS", "RESET", "MULT"].includes(kind);
   const pat = directional ? analyzePatterns(prices, sensitivity) : null;
-  // Single pattern setup: directional contracts trade ONLY when the confluence setup confirms.
-  if (directional) {
-    const st = patternSetup(prices, sensitivity);
-    sig.side = st.side; sig.confidence = st.confidence; sig.note = st.note;
+  if (pat && pat.side !== null) {
+    const names = pat.hits.filter((h) => h.bias === pat.side).sort((a, b) => b.weight - a.weight).slice(0, 3).map((h) => h.name).join(", ");
+    if (sig.side === null || sig.side !== pat.side && pat.confidence > sig.confidence) {
+      sig.side = pat.side; sig.confidence = pat.confidence;
+      sig.note = `Pattern engine: ${names} (score ${pat.score.toFixed(1)}, trend ${pat.trend})`;
+    } else if (sig.side === pat.side) {
+      sig.confidence = Math.min(99, Math.max(sig.confidence, pat.confidence) + 10);
+      sig.note = `Confluence — ${names} + ${sig.note}`;
+    }
+  }
+  // Hybrid fallback: when nothing qualifies, follow raw tick momentum so orders are never blocked.
+  if (sig.side === null && prices.length > 4) {
+    const m = prices[prices.length - 1]! - prices[prices.length - 4]!;
+    sig.side = m >= 0 ? 0 : 1;
+    sig.note = `Momentum mode (${m >= 0 ? "up" : "down"} over last 3 ticks) — ${sig.note}`;
   }
   const runs = kind === "RUNS" ? runsSignal(prices, duration, sensitivity) : null;
   const ctAvailable = (t: string) => !available || available.has(t);
@@ -306,7 +317,7 @@ function Dashboard() {
     if (!account?.isVirtual) { setAuto(false); addLog("Stopped: autopilot runs on DEMO accounts only"); return; }
     if (Date.now() - lastSettle.current < cooldown * 1000) return;
     const wait = (why: string) => { if (Date.now() - lastWaitLog.current > 15000) { lastWaitLog.current = Date.now(); addLog(`Waiting: ${why}`); } };
-    if (sig.side === null) return wait(directional ? "waiting for pattern confirmation" : "collecting ticks");
+    if (sig.side === null) return wait("collecting ticks");
     if (minConf > 0 && sig.confidence < minConf) return wait(`confidence ${sig.confidence}% below your minimum ${minConf}%`);
     if (brainGate && (!brain || brain.side !== sig.side)) return wait("AI Brain does not agree yet");
     if (mode === "SIDE_A" && sig.side !== 0) return wait(`signal is ${def.sides[1]}, you chose ${def.sides[0]} only`);

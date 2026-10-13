@@ -20,15 +20,3 @@ describe("pattern engine", () => {
     expect(analyzePatterns([1, 2, 3], 3).side).toBe(null);
   });
 });
-
-import { patternSetup } from "./patterns";
-describe("pattern confluence setup", () => {
-  const upT = Array.from({ length: 300 }, (_, i) => 100 + i * 0.1 + Math.sin(i) * 0.3);
-  it("confirms Up on a clean uptrend and Down on a downtrend", () => {
-    expect(patternSetup(upT, 3).side).toBe(0);
-    expect(patternSetup(upT.map((p) => 200 - p), 3).side).toBe(1);
-  });
-  it("does not fire on a flat market", () => {
-    expect(patternSetup(Array.from({ length: 300 }, () => 100), 3).side).toBe(null);
-  });
-});
