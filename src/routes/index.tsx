@@ -584,6 +584,20 @@ function Dashboard() {
             );
           })()}
         </section>
+        {pat && (
+          <section className="glass space-y-2 rounded-sm p-4">
+            <h2 className="font-mono font-semibold text-primary">&gt;_ pattern.scan <span className="text-xs text-muted-foreground">trend {pat.trend} · score {pat.score.toFixed(1)}</span></h2>
+            {pat.hits.length === 0 && <p className="font-mono text-xs text-muted-foreground">No patterns on the latest candles.</p>}
+            <div className="max-h-60 space-y-0.5 overflow-auto font-mono text-xs">
+              {pat.hits.map((h) => (
+                <div key={h.name} className="flex justify-between gap-2">
+                  <span><span className="text-muted-foreground">[{h.group}]</span> {h.name}</span>
+                  <span className={h.bias === 0 ? "text-up" : "text-down"}>{h.bias === 0 ? "▲" : "▼"} {h.weight}</span>
+                </div>
+              ))}
+            </div>
+          </section>
+        )}
         <Profiles settings={settings} onApply={applySettings} onLog={addLog} />
         <Journal trades={trades} />
 
@@ -614,6 +628,7 @@ function Dashboard() {
             symbol, name: inst?.name, marketType: inst?.group, contract: def.label, sideA: def.sides[0], sideB: def.sides[1],
             duration: `${duration}${unit}`, barrier: def.barrier === "digit" ? digit : def.barrier === "offset" ? offset : def.barrier === "range" ? [hi, lo] : null,
             last: prices[prices.length - 1], localSignal: { side: sig.side === null ? "WAIT" : def.sides[sig.side], confidence: sig.confidence, note: sig.note },
+            patterns: pat?.hits.map((h) => `${h.name} ${h.bias === 0 ? "bullish" : "bearish"}`),
             indicators: base.parts.map((p) => `${p.name}: ${p.detail} (${p.bias ?? "neutral"})`),
             digits: stats ? stats.counts : undefined,
             recentTicks: prices.slice(-120).filter((_, i) => i % 2 === 0),
