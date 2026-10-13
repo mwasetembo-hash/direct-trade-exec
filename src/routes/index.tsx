@@ -475,10 +475,10 @@ function Dashboard() {
               </button>
             ))}
           </div>
-          <div className="grid grid-cols-2 gap-2">
+          <div className="grid grid-cols-2 gap-2 [&>*]:min-w-0">
             {num(stake, setStake, "Stake", 0.01)}
-            {!def.open && <div className="flex gap-1">
-              <div className="flex-1">{num(duration, (n) => setDuration(def.ticks ? Math.min(def.ticks[1], Math.max(def.ticks[0], Math.round(n))) : n), def.ticks ? `Ticks (${def.ticks[0]}-${def.ticks[1]})` : "Duration")}</div>
+            {!def.open && <div className="flex min-w-0 gap-1">
+              <div className="min-w-0 flex-1">{num(duration, (n) => setDuration(def.ticks ? Math.min(def.ticks[1], Math.max(def.ticks[0], Math.round(n))) : n), def.ticks ? `Ticks (${def.ticks[0]}-${def.ticks[1]})` : "Duration")}</div>
               <label className="flex flex-col gap-1 text-xs text-muted-foreground">Unit
                 <select value={unit} disabled={def.digits || !!def.ticks} onChange={(e) => setUnit(e.target.value as Unit)} className={field}>
                   <option value="t">Ticks</option><option value="s">Seconds</option><option value="m">Minutes</option>
