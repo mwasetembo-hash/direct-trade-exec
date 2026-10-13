@@ -185,3 +185,30 @@ export function analyzePatterns(prices: number[], sensitivity = 3): PatternResul
   const confidence = side === null ? 0 : Math.round(Math.min(95, 40 + (Math.abs(score) / total) * 35 + Math.min(20, Math.abs(score) * 2)));
   return { side, confidence, score, hits, trend: st.trend };
 }
+
+export type Setup = { side: 0 | 1 | null; confidence: number; note: string; checks: { trend: boolean; ema: boolean; trigger: boolean; score: boolean } };
+
+/**
+ * The single "Trend-Confirmed Pattern" setup. Fires only when ALL agree:
+ * 1. Market structure trend (HH/HL or LH/LL)  2. EMA 9/21/50 stacked the same way
+ * 3. A trigger pattern in that direction (candlestick, BOS/CHOCH, SMC, Fib, chart)
+ * 4. Net pattern score points the same way.
+ */
+export function patternSetup(prices: number[], sensitivity = 3): Setup {
+  const none = { trend: false, ema: false, trigger: false, score: false };
+  if (prices.length < 60) return { side: null, confidence: 0, note: "Collecting ticks…", checks: none };
+  const r = analyzePatterns(prices, sensitivity);
+  const side: 0 | 1 | null = r.trend === "up" ? 0 : r.trend === "down" ? 1 : null;
+  const e9 = ema(prices, 9).at(-1)!, e21 = ema(prices, 21).at(-1)!, e50 = ema(prices, 50).at(-1)!;
+  const emaSide = e9 > e21 && e21 > e50 ? 0 : e9 < e21 && e21 < e50 ? 1 : null;
+  const trig = r.hits.filter((h) => h.bias === side && h.group !== "Indicator" && !/Higher Highs|Lower Highs/.test(h.name));
+  const checks = { trend: side !== null, ema: side !== null && emaSide === side, trigger: trig.length > 0, score: side !== null && (side === 0 ? r.score > 0 : r.score < 0) };
+  const passed = Object.values(checks).filter(Boolean).length;
+  if (passed < 4 || side === null) {
+    const miss = Object.entries(checks).filter(([, v]) => !v).map(([k]) => k).join(", ");
+    return { side: null, confidence: passed * 20, note: `Setup waiting — missing: ${miss} (trend ${r.trend})`, checks };
+  }
+  const conf = Math.round(Math.min(95, 60 + Math.abs(r.score) * 3 + trig.length * 4));
+  const names = trig.sort((a, b) => b.weight - a.weight).slice(0, 2).map((h) => h.name).join(" + ");
+  return { side, confidence: conf, note: `Trend-Confirmed Setup ${side === 0 ? "▲" : "▼"}: trend ${r.trend} + EMA stack + ${names}`, checks };
+}

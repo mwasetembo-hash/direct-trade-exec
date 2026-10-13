@@ -20,3 +20,15 @@ describe("pattern engine", () => {
     expect(analyzePatterns([1, 2, 3], 3).side).toBe(null);
   });
 });
+
+import { patternSetup } from "./patterns";
+describe("trend-confirmed setup", () => {
+  it("never fires in a flat market", () => {
+    const flat = Array.from({ length: 300 }, (_, i) => 100 + Math.sin(i) * 0.3);
+    expect(patternSetup(flat).side).toBe(null);
+  });
+  it("never fires against the trend", () => {
+    const upT = Array.from({ length: 300 }, (_, i) => 100 + i * 0.1 + Math.sin(i) * 0.3);
+    expect(patternSetup(upT).side).not.toBe(1);
+  });
+});
