@@ -334,7 +334,7 @@ function Dashboard() {
   const num = (v: number, set: (n: number) => void, label: string, step = 1) => (
     <label className="flex flex-col gap-1 text-xs text-muted-foreground">
       {label}
-      <input type="number" step={step} value={v} onChange={(e) => set(Number(e.target.value))} className={field} />
+      <input type="number" step={step} value={v} onChange={(e) => set(Number(e.target.value))} className={`w-full min-w-0 ${field}`} />
     </label>
   );
 
