@@ -50,7 +50,7 @@ export function BrainPanel({ getSnapshot, onVerdict, sides }: { getSnapshot: () 
   const active = PROVIDERS.filter((p) => server[p.id] || keys[p.env]);
 
   return (
-    <section className="glass space-y-3 rounded-2xl p-4 lg:col-span-3">
+    <section className="glass space-y-3 rounded-sm p-4 lg:col-span-3">
       <div className="flex flex-wrap items-center gap-3">
         <h2 className="text-lg font-bold"><span className="text-primary">◉</span> AI Brain</h2>
         <span className="text-xs text-muted-foreground">{active.length} AI engine{active.length === 1 ? "" : "s"} ready: {active.map((p) => p.label).join(", ") || "none"}</span>

@@ -40,7 +40,7 @@ export function DiagnosePanel({ error, log, appId }: { error: string; log: strin
   }
 
   return (
-    <section className="glass rounded-2xl p-4 lg:col-span-3">
+    <section className="glass rounded-sm p-4 lg:col-span-3">
       <h2 className="mb-1 font-semibold">AI connection doctor</h2>
       <p className="mb-2 text-xs text-muted-foreground">Sends your error and recent logs (tokens are hidden automatically) for an explanation and safe fixes.</p>
       <textarea

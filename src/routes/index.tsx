@@ -356,7 +356,7 @@ function Dashboard() {
       </header>
 
       <main className="mx-auto grid max-w-7xl gap-4 p-4 lg:grid-cols-3">
-        <section className="space-y-3 glass rounded-2xl p-4">
+        <section className="space-y-3 glass rounded-sm p-4">
           <h2 className="font-semibold">Deriv connection</h2>
           <label className="block text-xs text-muted-foreground">App ID
             <input value={appId} onChange={(e) => setAppId(e.target.value)} className={`mt-1 w-full ${field}`} />
@@ -385,13 +385,13 @@ function Dashboard() {
             ["Win rate", settled.length ? `${Math.round((wins / settled.length) * 100)}%` : "—"],
             ["Trades", `${trades.length}/${maxTrades}`],
           ].map(([k, v]) => (
-            <div key={k} className="glass rounded-2xl p-4">
+            <div key={k} className="glass rounded-sm p-4">
               <div className="text-xs text-muted-foreground">{k}</div>
               <div className={`mt-1 font-mono text-xl font-semibold ${k === "Session P/L" ? (net >= 0 ? "text-up" : "text-down") : ""}`}>{v}</div>
             </div>
           ))}
 
-          <div className="col-span-2 glass rounded-2xl p-4 lg:col-span-4">
+          <div className="col-span-2 glass rounded-sm p-4 lg:col-span-4">
             <div className="mb-2 flex flex-wrap items-center gap-2">
               <select value={symbol} onChange={(e) => setSymbol(e.target.value)} className={field}>
                 {GROUPS.map((g) => {
@@ -466,7 +466,7 @@ function Dashboard() {
           </div>
         </section>
 
-        <section className="space-y-3 glass rounded-2xl p-4">
+        <section className="space-y-3 glass rounded-sm p-4">
           <h2 className="font-semibold">Trade parameters & risk</h2>
           <div className="grid grid-cols-3 gap-1 rounded-md bg-muted p-1 text-xs">
             {(def.single ? (["SIGNAL"] as Mode[]) : (["SIDE_A", "SIDE_B", "SIGNAL"] as Mode[])).map((m) => (
@@ -520,7 +520,7 @@ function Dashboard() {
           <p className="text-xs text-muted-foreground">No strategy guarantees profit. Autopilot runs on demo accounts only, uses a fixed stake (no martingale), pauses after each trade, and stops at your loss limit, profit target, trade cap or loss streak.</p>
         </section>
 
-        <section className="glass rounded-2xl p-4 lg:col-span-2">
+        <section className="glass rounded-sm p-4 lg:col-span-2">
           <div className="mb-2 flex items-center justify-between">
             <h2 className="font-semibold">Market scanner</h2>
             <button disabled={status !== "on" || scanning} onClick={runScan} className="rounded-md bg-primary px-3 py-1.5 text-sm font-semibold text-primary-foreground disabled:opacity-40">
@@ -545,7 +545,7 @@ function Dashboard() {
           </div>
         </section>
 
-        <section className="glass space-y-2 rounded-2xl p-4">
+        <section className="glass space-y-2 rounded-sm p-4">
           <h2 className="font-mono font-semibold text-primary">&gt;_ signal.ticket</h2>
           {(() => {
             const side = sig.side ?? 0;
@@ -574,7 +574,7 @@ function Dashboard() {
         <Profiles settings={settings} onApply={applySettings} onLog={addLog} />
         <Journal trades={trades} />
 
-        <section className="glass rounded-2xl p-4">
+        <section className="glass rounded-sm p-4">
           <h2 className="mb-2 font-semibold">Trade history</h2>
           <div className="max-h-80 space-y-1 overflow-auto font-mono text-xs">
             {trades.length === 0 && <p className="text-muted-foreground">No trades yet.</p>}
@@ -587,7 +587,7 @@ function Dashboard() {
           </div>
         </section>
 
-        <section className="glass rounded-2xl p-4 lg:col-span-2">
+        <section className="glass rounded-sm p-4 lg:col-span-2">
           <h2 className="mb-2 font-semibold">Activity log</h2>
           <div className="max-h-80 overflow-auto font-mono text-xs text-muted-foreground">
             {log.map((l, i) => <div key={i}>{l}</div>)}
@@ -607,7 +607,7 @@ function Dashboard() {
             session: { trades: trades.length, net },
           })}
         />
-        <label className="glass flex items-center gap-2 rounded-2xl p-3 text-sm lg:col-span-3">
+        <label className="glass flex items-center gap-2 rounded-sm p-3 text-sm lg:col-span-3">
           <input type="checkbox" checked={brainGate} onChange={(e) => setBrainGate(e.target.checked)} />
           Autopilot only trades when the AI Brain agrees with the chart signal
         </label>

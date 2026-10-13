@@ -24,7 +24,7 @@ export function Profiles({ settings, onApply, onLog }: { settings: S; onApply: (
   };
 
   return (
-    <section className="glass space-y-2 rounded-2xl p-4">
+    <section className="glass space-y-2 rounded-sm p-4">
       <h2 className="font-semibold">Saved settings</h2>
       <div className="flex gap-2">
         <input value={name} onChange={(e) => setName(e.target.value)} placeholder="Profile name" className={`flex-1 ${field}`} />

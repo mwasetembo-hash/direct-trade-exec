@@ -20,7 +20,7 @@ export function Journal({ trades }: { trades: Trade[] }) {
     ["Best / worst streak", `${bestW}W / ${-bestL}L`],
   ];
   return (
-    <section className="glass rounded-2xl p-4">
+    <section className="glass rounded-sm p-4">
       <h2 className="mb-2 font-semibold">Performance journal</h2>
       <div className="grid grid-cols-2 gap-2 text-xs">
         {stats.map(([k, v]) => <div key={k} className="rounded-lg border border-border p-2"><div className="text-muted-foreground">{k}</div><div className="font-mono font-semibold">{v}</div></div>)}
