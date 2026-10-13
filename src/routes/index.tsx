@@ -7,6 +7,7 @@ import { BrainPanel } from "@/components/BrainPanel";
 import { MatrixBackground } from "@/components/MatrixBackground";
 import type { BrainVerdict } from "@/lib/brain-providers";
 import { runsSignal } from "@/lib/runs";
+import { analyzePatterns } from "@/lib/patterns";
 import { Journal } from "@/components/Journal";
 import { Profiles } from "@/components/Profiles";
 
@@ -114,7 +115,19 @@ function Dashboard() {
   const wins = settled.filter((t) => (t.profit ?? 0) > 0).length;
   const ticksEq = unit === "t" ? duration : unit === "s" ? duration / 2 : duration * 30;
   const sig = kindSignal(kind, prices, decimals, { digit, offset, hi, lo, ticks: ticksEq, sensitivity });
-  // Hybrid fallback: when the filter finds no clean setup, follow raw tick momentum so orders are never blocked.
+  const directional = ["RUNS", "RISE_FALL", "HIGHER_LOWER", "ASIANS", "RESET", "MULT"].includes(kind);
+  const pat = directional ? analyzePatterns(prices, sensitivity) : null;
+  if (pat && pat.side !== null) {
+    const names = pat.hits.filter((h) => h.bias === pat.side).sort((a, b) => b.weight - a.weight).slice(0, 3).map((h) => h.name).join(", ");
+    if (sig.side === null || sig.side !== pat.side && pat.confidence > sig.confidence) {
+      sig.side = pat.side; sig.confidence = pat.confidence;
+      sig.note = `Pattern engine: ${names} (score ${pat.score.toFixed(1)}, trend ${pat.trend})`;
+    } else if (sig.side === pat.side) {
+      sig.confidence = Math.min(99, Math.max(sig.confidence, pat.confidence) + 10);
+      sig.note = `Confluence — ${names} + ${sig.note}`;
+    }
+  }
+  // Hybrid fallback: when nothing qualifies, follow raw tick momentum so orders are never blocked.
   if (sig.side === null && prices.length > 4) {
     const m = prices[prices.length - 1]! - prices[prices.length - 4]!;
     sig.side = m >= 0 ? 0 : 1;
