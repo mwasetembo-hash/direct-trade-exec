@@ -7,6 +7,7 @@ import { BrainPanel } from "@/components/BrainPanel";
 import { MatrixBackground } from "@/components/MatrixBackground";
 import type { BrainVerdict } from "@/lib/brain-providers";
 import { runsSignal } from "@/lib/runs";
+import { analyzePatterns } from "@/lib/patterns";
 import { Journal } from "@/components/Journal";
 import { Profiles } from "@/components/Profiles";
 
@@ -114,7 +115,19 @@ function Dashboard() {
   const wins = settled.filter((t) => (t.profit ?? 0) > 0).length;
   const ticksEq = unit === "t" ? duration : unit === "s" ? duration / 2 : duration * 30;
   const sig = kindSignal(kind, prices, decimals, { digit, offset, hi, lo, ticks: ticksEq, sensitivity });
-  // Hybrid fallback: when the filter finds no clean setup, follow raw tick momentum so orders are never blocked.
+  const directional = ["RUNS", "RISE_FALL", "HIGHER_LOWER", "ASIANS", "RESET", "MULT"].includes(kind);
+  const pat = directional ? analyzePatterns(prices, sensitivity) : null;
+  if (pat && pat.side !== null) {
+    const names = pat.hits.filter((h) => h.bias === pat.side).sort((a, b) => b.weight - a.weight).slice(0, 3).map((h) => h.name).join(", ");
+    if (sig.side === null || sig.side !== pat.side && pat.confidence > sig.confidence) {
+      sig.side = pat.side; sig.confidence = pat.confidence;
+      sig.note = `Pattern engine: ${names} (score ${pat.score.toFixed(1)}, trend ${pat.trend})`;
+    } else if (sig.side === pat.side) {
+      sig.confidence = Math.min(99, Math.max(sig.confidence, pat.confidence) + 10);
+      sig.note = `Confluence — ${names} + ${sig.note}`;
+    }
+  }
+  // Hybrid fallback: when nothing qualifies, follow raw tick momentum so orders are never blocked.
   if (sig.side === null && prices.length > 4) {
     const m = prices[prices.length - 1]! - prices[prices.length - 4]!;
     sig.side = m >= 0 ? 0 : 1;
@@ -571,6 +584,20 @@ function Dashboard() {
             );
           })()}
         </section>
+        {pat && (
+          <section className="glass space-y-2 rounded-sm p-4">
+            <h2 className="font-mono font-semibold text-primary">&gt;_ pattern.scan <span className="text-xs text-muted-foreground">trend {pat.trend} · score {pat.score.toFixed(1)}</span></h2>
+            {pat.hits.length === 0 && <p className="font-mono text-xs text-muted-foreground">No patterns on the latest candles.</p>}
+            <div className="max-h-60 space-y-0.5 overflow-auto font-mono text-xs">
+              {pat.hits.map((h) => (
+                <div key={h.name} className="flex justify-between gap-2">
+                  <span><span className="text-muted-foreground">[{h.group}]</span> {h.name}</span>
+                  <span className={h.bias === 0 ? "text-up" : "text-down"}>{h.bias === 0 ? "▲" : "▼"} {h.weight}</span>
+                </div>
+              ))}
+            </div>
+          </section>
+        )}
         <Profiles settings={settings} onApply={applySettings} onLog={addLog} />
         <Journal trades={trades} />
 
@@ -601,6 +628,7 @@ function Dashboard() {
             symbol, name: inst?.name, marketType: inst?.group, contract: def.label, sideA: def.sides[0], sideB: def.sides[1],
             duration: `${duration}${unit}`, barrier: def.barrier === "digit" ? digit : def.barrier === "offset" ? offset : def.barrier === "range" ? [hi, lo] : null,
             last: prices[prices.length - 1], localSignal: { side: sig.side === null ? "WAIT" : def.sides[sig.side], confidence: sig.confidence, note: sig.note },
+            patterns: pat?.hits.map((h) => `${h.name} ${h.bias === 0 ? "bullish" : "bearish"}`),
             indicators: base.parts.map((p) => `${p.name}: ${p.detail} (${p.bias ?? "neutral"})`),
             digits: stats ? stats.counts : undefined,
             recentTicks: prices.slice(-120).filter((_, i) => i % 2 === 0),
