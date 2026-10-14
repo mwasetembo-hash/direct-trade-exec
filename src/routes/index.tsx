@@ -7,7 +7,7 @@ import { BrainPanel } from "@/components/BrainPanel";
 import { MatrixBackground } from "@/components/MatrixBackground";
 import type { BrainVerdict } from "@/lib/brain-providers";
 import { runsSignal } from "@/lib/runs";
-import { analyzePatterns, patternSetup } from "@/lib/patterns";
+import { analyzePatterns, runSetup, SETUPS, type SetupId } from "@/lib/patterns";
 import { Journal } from "@/components/Journal";
 import { Profiles } from "@/components/Profiles";
 
@@ -57,6 +57,7 @@ function Dashboard() {
   const [lo, setLo] = useState(-0.5);
   const [minConf, setMinConf] = useState(0);
   const [sensitivity, setSensitivity] = useState(3);
+  const [setupId, setSetupId] = useState<SetupId>("A");
   const [cooldown, setCooldown] = useState(0);
   const [selectedTick, setSelectedTick] = useState(3);
   const [multiplier, setMultiplier] = useState(100);
@@ -104,9 +105,9 @@ function Dashboard() {
     if (def.single) setMode("SIGNAL");
   }, [kind]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  const settings = { symbol, kind, mode, stake, duration, unit, digit, offset, hi, lo, minConf, maxLoss, takeProfit, maxTrades, lossStreakStop, sensitivity, cooldown, selectedTick, multiplier, growthRate, tpAmt, slAmt, brainGate };
+  const settings = { symbol, kind, mode, stake, duration, unit, digit, offset, hi, lo, minConf, maxLoss, takeProfit, maxTrades, lossStreakStop, sensitivity, setupId, cooldown, selectedTick, multiplier, growthRate, tpAmt, slAmt, brainGate };
   const applySettings = (c: Partial<typeof settings>) => {
-    const set: Record<string, (v: any) => void> = { symbol: setSymbol, kind: setKind, mode: setMode, stake: setStake, duration: setDuration, unit: setUnit, digit: setDigit, offset: setOffset, hi: setHi, lo: setLo, minConf: setMinConf, maxLoss: setMaxLoss, takeProfit: setTakeProfit, maxTrades: setMaxTrades, lossStreakStop: setLossStreakStop, sensitivity: setSensitivity, cooldown: setCooldown, selectedTick: setSelectedTick, multiplier: setMultiplier, growthRate: setGrowthRate, tpAmt: setTpAmt, slAmt: setSlAmt, brainGate: setBrainGate };
+    const set: Record<string, (v: any) => void> = { symbol: setSymbol, kind: setKind, mode: setMode, stake: setStake, duration: setDuration, unit: setUnit, digit: setDigit, offset: setOffset, hi: setHi, lo: setLo, minConf: setMinConf, maxLoss: setMaxLoss, takeProfit: setTakeProfit, maxTrades: setMaxTrades, lossStreakStop: setLossStreakStop, sensitivity: setSensitivity, setupId: setSetupId, cooldown: setCooldown, selectedTick: setSelectedTick, multiplier: setMultiplier, growthRate: setGrowthRate, tpAmt: setTpAmt, slAmt: setSlAmt, brainGate: setBrainGate };
     for (const [k, v] of Object.entries(c)) if (set[k] && v !== undefined) set[k]!(v);
   };
 
@@ -117,7 +118,7 @@ function Dashboard() {
   const sig = kindSignal(kind, prices, decimals, { digit, offset, hi, lo, ticks: ticksEq, sensitivity });
   const directional = ["RUNS", "RISE_FALL", "HIGHER_LOWER", "ASIANS", "RESET", "MULT"].includes(kind);
   const pat = directional ? analyzePatterns(prices, sensitivity) : null;
-  const setup = directional ? patternSetup(prices, sensitivity) : null;
+  const setup = directional ? runSetup(setupId, prices, sensitivity) : null;
   // Directional contracts trade ONLY the single trend-confirmed pattern setup.
   if (setup) { sig.side = setup.side; sig.confidence = setup.confidence; sig.note = setup.note; }
   // Non-directional contracts: fall back to momentum so orders are not blocked.
@@ -503,6 +504,13 @@ function Dashboard() {
             {def.open && num(tpAmt, setTpAmt, "Take profit (amount)", 0.1)}
             {def.extra === "multiplier" && num(slAmt, setSlAmt, "Stop loss (amount)", 0.1)}
             {kind === "RUNS" && (
+              <div className="col-span-2 flex flex-col gap-1 text-xs text-muted-foreground">Trade setup
+                <div className="grid grid-cols-2 gap-1">
+                  {(Object.keys(SETUPS) as SetupId[]).map((id) => (
+                    <button key={id} type="button" onClick={() => setSetupId(id)} className={`rounded-md border px-2 py-1.5 text-left font-mono ${setupId === id ? "border-primary bg-primary/15 text-primary" : "border-border text-foreground"}`}>{id}: {SETUPS[id]}</button>
+                  ))}
+                </div>
+              </div>
               <label className="col-span-2 flex flex-col gap-1 text-xs text-muted-foreground">Sensitivity: {["", "Very careful", "Careful", "Balanced", "Sensitive", "Very sensitive"][sensitivity]}
                 <input type="range" min={1} max={5} value={sensitivity} onChange={(e) => setSensitivity(Number(e.target.value))} />
               </label>

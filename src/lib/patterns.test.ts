@@ -32,3 +32,12 @@ describe("trend-confirmed setup", () => {
     expect(patternSetup(upT).side).not.toBe(1);
   });
 });
+
+import { trendlineSetup } from "./patterns";
+describe("setup B trendline breakout-retest", () => {
+  const flat = Array.from({ length: 300 }, (_, i) => 100 + Math.sin(i) * 0.3);
+  const upT = Array.from({ length: 300 }, (_, i) => 100 + i * 0.1 + Math.sin(i) * 0.3);
+  it("never fires in a flat market", () => { expect(trendlineSetup(flat).side).toBe(null); });
+  it("never fires against the trend", () => { expect(trendlineSetup(upT).side).not.toBe(1); });
+  it("never fires against a downtrend", () => { expect(trendlineSetup(upT.map((p) => 200 - p)).side).not.toBe(0); });
+});
