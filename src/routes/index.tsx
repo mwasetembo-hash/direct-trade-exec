@@ -503,7 +503,7 @@ function Dashboard() {
             )}
             {def.open && num(tpAmt, setTpAmt, "Take profit (amount)", 0.1)}
             {def.extra === "multiplier" && num(slAmt, setSlAmt, "Stop loss (amount)", 0.1)}
-            {kind === "RUNS" && (
+            {["RISE_FALL", "HIGHER_LOWER", "ASIANS", "RESET", "MULT", "RUNS"].includes(kind) && (
               <div className="col-span-2 flex flex-col gap-1 text-xs text-muted-foreground">Trade setup
                 <div className="grid grid-cols-2 gap-1">
                   {(Object.keys(SETUPS) as SetupId[]).map((id) => (
@@ -511,6 +511,8 @@ function Dashboard() {
                   ))}
                 </div>
               </div>
+            )}
+            {kind === "RUNS" && (
               <label className="col-span-2 flex flex-col gap-1 text-xs text-muted-foreground">Sensitivity: {["", "Very careful", "Careful", "Balanced", "Sensitive", "Very sensitive"][sensitivity]}
                 <input type="range" min={1} max={5} value={sensitivity} onChange={(e) => setSensitivity(Number(e.target.value))} />
               </label>
