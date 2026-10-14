@@ -41,3 +41,11 @@ describe("setup B trendline breakout-retest", () => {
   it("never fires against the trend", () => { expect(trendlineSetup(upT).side).not.toBe(1); });
   it("never fires against a downtrend", () => { expect(trendlineSetup(upT.map((p) => 200 - p)).side).not.toBe(0); });
 });
+
+import { fibSetup } from "./patterns";
+describe("setup C fib pullback", () => {
+  const flat = Array.from({ length: 300 }, (_, i) => 100 + Math.sin(i) * 0.3);
+  const upT = Array.from({ length: 300 }, (_, i) => 100 + i * 0.1 + Math.sin(i) * 0.3);
+  it("never fires in a flat market", () => { expect(fibSetup(flat).side).toBe(null); });
+  it("never fires against the trend", () => { expect(fibSetup(upT).side).not.toBe(1); });
+});

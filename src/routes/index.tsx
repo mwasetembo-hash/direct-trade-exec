@@ -26,7 +26,7 @@ export const Route = createFileRoute("/")({
 });
 
 type Mode = "SIDE_A" | "SIDE_B" | "SIGNAL";
-type Trade = { id: number; label: string; stake: number; profit: number | null; symbol: string; time: string };
+type Trade = { id: number; label: string; stake: number; profit: number | null; symbol: string; time: string; setup?: string };
 type ScanRow = { symbol: string; name: string; group: string; trend: number; conf: number; dir: string };
 type Unit = "t" | "s" | "m";
 
@@ -279,7 +279,7 @@ function Dashboard() {
       }
       const id = Number(b?.buy?.contract_id);
       if (!id) throw new Error("Deriv did not confirm the order");
-      setTrades((t) => [{ id, label, stake: amount, profit: null, symbol, time: new Date().toLocaleTimeString() }, ...t]);
+      setTrades((t) => [{ id, label, stake: amount, profit: null, symbol, setup: directional ? setupId : undefined, time: new Date().toLocaleTimeString() }, ...t]);
       addLog(`BUY ${label} ${amount.toFixed(2)} on ${symbol} #${id}`);
       const result = await new Promise<number>((resolve) => {
         let done = false;
