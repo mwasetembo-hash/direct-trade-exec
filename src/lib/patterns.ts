@@ -221,10 +221,11 @@ export function efficiency(prices: number[], n = 100) {
   return path ? Math.abs(w.at(-1)! - w[0]!) / path : 0;
 }
 
-export type SetupId = "A" | "B";
+export type SetupId = "A" | "B" | "C";
 export const SETUPS: Record<SetupId, string> = {
   A: "Trend-Confirmed Pattern",
   B: "Trendline Breakout-Retest",
+  C: "Fib Pullback + Support",
 };
 
 /**
@@ -268,5 +269,44 @@ export function trendlineSetup(prices: number[], sensitivity = 3): Setup {
 }
 
 export function runSetup(id: SetupId, prices: number[], sensitivity = 3): Setup {
+  if (id === "C") return fibSetup(prices, sensitivity);
   return id === "B" ? trendlineSetup(prices, sensitivity) : patternSetup(prices, sensitivity);
+}
+
+/**
+ * Setup C "Fib Pullback + Support". Fires only when ALL agree:
+ * 1. Trend: structure HH/HL or LH/LL with real directional efficiency
+ * 2. Pullback: price retraced into the 38.2–61.8% zone of the last swing
+ * 3. Support/resistance: the pullback held above the last swing low (up) / below swing high (down)
+ * 4. Rejection: last candle closes back in the trend direction
+ */
+export function fibSetup(prices: number[], sensitivity = 3): Setup {
+  const none = { trend: false, ema: false, trigger: false, score: false };
+  if (prices.length < 60) return { side: null, confidence: 0, note: "Collecting ticks…", checks: none };
+  const r = analyzePatterns(prices, sensitivity);
+  const eff = efficiency(prices);
+  const side: 0 | 1 | null = eff < 0.12 ? null : r.trend === "up" ? 0 : r.trend === "down" ? 1 : null;
+  const c = toCandles(prices.slice(-600), 5);
+  const { hi, lo } = swings(c);
+  const sh = hi.at(-1), sl = lo.at(-1), last = c.at(-1)!;
+  let zone = false, held = false;
+  if (sh && sl && side !== null) {
+    const span = sh.p - sl.p || 1e-12;
+    // Retracement measured from the swing extreme back toward the origin
+    const recent = c.slice(-4);
+    const extreme = side === 0 ? Math.min(...recent.map((k) => k.l)) : Math.max(...recent.map((k) => k.h));
+    const retr = side === 0 ? (sh.p - extreme) / span : (extreme - sl.p) / span;
+    zone = retr >= 0.382 && retr <= 0.618;
+    held = side === 0 ? extreme > sl.p : extreme < sh.p;
+  }
+  const rej = side === 0 ? last.c > last.o : side === 1 ? last.c < last.o : false;
+  const checks = { trend: side !== null, ema: zone, trigger: held, score: rej };
+  const passed = Object.values(checks).filter(Boolean).length;
+  if (passed < 4 || side === null) {
+    const label: Record<string, string> = { trend: "trend", ema: "fib zone", trigger: "support hold", score: "rejection" };
+    const miss = Object.entries(checks).filter(([, v]) => !v).map(([k]) => label[k]).join(", ");
+    return { side: null, confidence: passed * 20, note: `Setup C waiting — missing: ${miss} (trend ${r.trend})`, checks };
+  }
+  const conf = Math.round(Math.min(95, 64 + eff * 40));
+  return { side, confidence: conf, note: `Setup C ${side === 0 ? "▲" : "▼"} CONFIRMED: Fib 38–62% pullback held ${side === 0 ? "support" : "resistance"}`, checks };
 }

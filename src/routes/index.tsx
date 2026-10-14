@@ -26,7 +26,7 @@ export const Route = createFileRoute("/")({
 });
 
 type Mode = "SIDE_A" | "SIDE_B" | "SIGNAL";
-type Trade = { id: number; label: string; stake: number; profit: number | null; symbol: string; time: string };
+type Trade = { id: number; label: string; stake: number; profit: number | null; symbol: string; time: string; setup?: string | undefined };
 type ScanRow = { symbol: string; name: string; group: string; trend: number; conf: number; dir: string };
 type Unit = "t" | "s" | "m";
 
@@ -279,7 +279,7 @@ function Dashboard() {
       }
       const id = Number(b?.buy?.contract_id);
       if (!id) throw new Error("Deriv did not confirm the order");
-      setTrades((t) => [{ id, label, stake: amount, profit: null, symbol, time: new Date().toLocaleTimeString() }, ...t]);
+      setTrades((t) => [{ id, label, stake: amount, profit: null, symbol, setup: directional ? setupId : undefined, time: new Date().toLocaleTimeString() }, ...t]);
       addLog(`BUY ${label} ${amount.toFixed(2)} on ${symbol} #${id}`);
       const result = await new Promise<number>((resolve) => {
         let done = false;
@@ -505,9 +505,9 @@ function Dashboard() {
             {def.extra === "multiplier" && num(slAmt, setSlAmt, "Stop loss (amount)", 0.1)}
             {["RISE_FALL", "HIGHER_LOWER", "ASIANS", "RESET", "MULT", "RUNS"].includes(kind) && (
               <div className="col-span-2 flex flex-col gap-1 text-xs text-muted-foreground">Trade setup
-                <div className="grid grid-cols-2 gap-1">
+                <div className="grid grid-cols-1 gap-1">
                   {(Object.keys(SETUPS) as SetupId[]).map((id) => (
-                    <button key={id} type="button" onClick={() => setSetupId(id)} className={`rounded-md border px-2 py-1.5 text-left font-mono ${setupId === id ? "border-primary bg-primary/15 text-primary" : "border-border text-foreground"}`}>{id}: {SETUPS[id]}</button>
+                    <button key={id} type="button" onClick={() => setSetupId(id)} className={`rounded-md border px-2 py-1.5 text-left font-mono ${setupId === id ? "border-primary bg-primary/15 text-primary" : "border-border text-foreground"}`}><span className="block">{id}: {SETUPS[id]}</span><span className="block truncate text-[10px] text-muted-foreground">{runSetup(id, prices, sensitivity).note}</span><span className="block text-[10px] text-muted-foreground">{(() => { const t = trades.filter((x) => x.setup === id && x.profit !== null); const w = t.filter((x) => (x.profit ?? 0) > 0).length; const n = t.reduce((a, x) => a + (x.profit ?? 0), 0); return `${w}W / ${t.length - w}L · net ${n.toFixed(2)}`; })()}</span></button>
                   ))}
                 </div>
               </div>
