@@ -198,7 +198,7 @@ export function patternSetup(prices: number[], sensitivity = 3): Setup {
   const none = { trend: false, ema: false, trigger: false, score: false };
   if (prices.length < 60) return { side: null, confidence: 0, note: "Collecting ticks…", checks: none };
   const r = analyzePatterns(prices, sensitivity);
-  const side: 0 | 1 | null = r.trend === "up" ? 0 : r.trend === "down" ? 1 : null;
+  const side: 0 | 1 | null = efficiency(prices) < 0.12 ? null : r.trend === "up" ? 0 : r.trend === "down" ? 1 : null;
   const e9 = ema(prices, 9).at(-1)!, e21 = ema(prices, 21).at(-1)!, e50 = ema(prices, 50).at(-1)!;
   const emaSide = e9 > e21 && e21 > e50 ? 0 : e9 < e21 && e21 < e50 ? 1 : null;
   const trig = r.hits.filter((h) => h.bias === side && h.group !== "Indicator" && !/Higher Highs|Lower Highs/.test(h.name));
@@ -210,5 +210,63 @@ export function patternSetup(prices: number[], sensitivity = 3): Setup {
   }
   const conf = Math.round(Math.min(95, 60 + Math.abs(r.score) * 3 + trig.length * 4));
   const names = trig.sort((a, b) => b.weight - a.weight).slice(0, 2).map((h) => h.name).join(" + ");
-  return { side, confidence: conf, note: `Trend-Confirmed Setup ${side === 0 ? "▲" : "▼"}: trend ${r.trend} + EMA stack + ${names}`, checks };
+  return { side, confidence: conf, note: `Setup A ${side === 0 ? "▲" : "▼"} CONFIRMED: trend ${r.trend} + EMA stack + ${names}`, checks };
+}
+
+/** Directional efficiency over last n ticks: |net move| / path length (0..1). */
+export function efficiency(prices: number[], n = 100) {
+  const w = prices.slice(-n);
+  let path = 0;
+  for (let i = 1; i < w.length; i++) path += Math.abs(w[i]! - w[i - 1]!);
+  return path ? Math.abs(w.at(-1)! - w[0]!) / path : 0;
+}
+
+export type SetupId = "A" | "B";
+export const SETUPS: Record<SetupId, string> = {
+  A: "Trend-Confirmed Pattern",
+  B: "Trendline Breakout-Retest",
+};
+
+/**
+ * Setup B "Trendline Breakout-Retest". Fires only when ALL agree:
+ * 1. Trend: structure HH/HL or LH/LL with real directional efficiency
+ * 2. Trendline: line through the last two swing lows (up) / highs (down) slopes with
+ *    the trend and price is holding on the correct side of it
+ * 3. Breakout: a BOS/CHOCH, liquidity sweep, FVG retest or neckline break in the trend direction
+ * 4. Momentum: last candle closes in the trend direction and price is beyond EMA 21
+ */
+export function trendlineSetup(prices: number[], sensitivity = 3): Setup {
+  const none = { trend: false, ema: false, trigger: false, score: false };
+  if (prices.length < 60) return { side: null, confidence: 0, note: "Collecting ticks…", checks: none };
+  const r = analyzePatterns(prices, sensitivity);
+  const eff = efficiency(prices);
+  const side: 0 | 1 | null = eff < 0.12 ? null : r.trend === "up" ? 0 : r.trend === "down" ? 1 : null;
+  const c = toCandles(prices.slice(-600), 5);
+  const { hi, lo } = swings(c);
+  const pts = side === 0 ? lo.slice(-2) : side === 1 ? hi.slice(-2) : [];
+  let line = false;
+  if (pts.length === 2) {
+    const [p1, p2] = pts as [{ i: number; p: number }, { i: number; p: number }];
+    const slope = (p2.p - p1.p) / (p2.i - p1.i || 1);
+    const at = p2.p + slope * (c.length - 1 - p2.i);
+    const last = c.at(-1)!.c;
+    line = side === 0 ? slope > 0 && last > at : slope < 0 && last < at;
+  }
+  const trig = r.hits.filter((h) => h.bias === side && /Structure|CHOCH|sweep|FVG|neckline|Triangle/.test(h.name));
+  const lastC = c.at(-1)!, e21 = ema(prices, 21).at(-1)!, p = prices.at(-1)!;
+  const mom = side === 0 ? lastC.c > lastC.o && p > e21 : side === 1 ? lastC.c < lastC.o && p < e21 : false;
+  const checks = { trend: side !== null, ema: line, trigger: trig.length > 0, score: mom };
+  const passed = Object.values(checks).filter(Boolean).length;
+  if (passed < 4 || side === null) {
+    const label: Record<string, string> = { trend: "trend", ema: "trendline", trigger: "breakout", score: "momentum" };
+    const miss = Object.entries(checks).filter(([, v]) => !v).map(([k]) => label[k]).join(", ");
+    return { side: null, confidence: passed * 20, note: `Setup B waiting — missing: ${miss} (trend ${r.trend}, eff ${Math.round(eff * 100)}%)`, checks };
+  }
+  const conf = Math.round(Math.min(95, 62 + eff * 40 + trig.length * 4));
+  const names = trig.sort((a, b) => b.weight - a.weight).slice(0, 2).map((h) => h.name).join(" + ");
+  return { side, confidence: conf, note: `Setup B ${side === 0 ? "▲" : "▼"} CONFIRMED: trendline holding + ${names}`, checks };
+}
+
+export function runSetup(id: SetupId, prices: number[], sensitivity = 3): Setup {
+  return id === "B" ? trendlineSetup(prices, sensitivity) : patternSetup(prices, sensitivity);
 }
