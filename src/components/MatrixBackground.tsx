@@ -1,11 +1,14 @@
 import { useEffect, useRef } from "react";
+import terminalGrid from "@/assets/terminal-grid.jpeg.asset.json";
 
 /** Matrix-style falling code rain with CRT scanlines. Colors come from theme tokens. */
 export function MatrixBackground() {
   const ref = useRef<HTMLCanvasElement>(null);
   useEffect(() => {
-    const cv = ref.current!;
-    const ctx = cv.getContext("2d")!;
+    const cv = ref.current;
+    if (!cv) return;
+    const ctx = cv.getContext("2d");
+    if (!ctx) return;
     const css = getComputedStyle(document.documentElement);
     const fg = css.getPropertyValue("--primary").trim() || "lime";
     const bg = css.getPropertyValue("--background").trim() || "black";
@@ -20,7 +23,7 @@ export function MatrixBackground() {
       ctx.globalAlpha = 0.12; ctx.fillStyle = bg; ctx.fillRect(0, 0, cv.width, cv.height);
       ctx.globalAlpha = 0.55; ctx.fillStyle = fg; ctx.font = `${size}px JetBrains Mono, monospace`;
       cols.forEach((y, i) => {
-        ctx.fillText(chars[(Math.random() * chars.length) | 0]!, i * size, y * size);
+        ctx.fillText(chars[(Math.random() * chars.length) | 0] ?? "0", i * size, y * size);
         cols[i] = y * size > cv.height && Math.random() > 0.975 ? 0 : y + 1;
       });
     };
@@ -29,7 +32,9 @@ export function MatrixBackground() {
   }, []);
   return (
     <>
-      <canvas ref={ref} aria-hidden className="pointer-events-none fixed inset-0 -z-10 opacity-40" />
+      <img src={terminalGrid.url} alt="" aria-hidden className="terminal-wallpaper pointer-events-none fixed inset-0 -z-20 h-full w-full object-cover" />
+      <div aria-hidden className="terminal-backdrop pointer-events-none fixed inset-0 -z-10" />
+      <canvas ref={ref} aria-hidden className="pointer-events-none fixed inset-0 -z-10 opacity-15" />
       <div aria-hidden className="scanlines pointer-events-none fixed inset-0 -z-10" />
     </>
   );

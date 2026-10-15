@@ -146,9 +146,9 @@
 /* Hacker terminal theme (dark, always on) */
 :root {
   --background: oklch(0.12 0.015 150);
-  --foreground: oklch(0.92 0.12 150);
-  --card: oklch(0.16 0.03 150);
-  --card-foreground: oklch(0.92 0.12 150);
+  --foreground: oklch(0.96 0.008 150);
+  --card: oklch(0.17 0.012 160);
+  --card-foreground: oklch(0.96 0.008 150);
   --popover: oklch(0.16 0.03 150);
   --popover-foreground: oklch(0.92 0.12 150);
   --primary: oklch(0.86 0.25 145);
@@ -156,7 +156,7 @@
   --secondary: oklch(0.2 0.04 150);
   --secondary-foreground: oklch(0.92 0.12 150);
   --muted: oklch(0.2 0.03 150);
-  --muted-foreground: oklch(0.7 0.1 150);
+  --muted-foreground: oklch(0.79 0.025 160);
   --accent: oklch(0.22 0.05 150);
   --accent-foreground: oklch(0.92 0.12 150);
   --destructive: oklch(0.65 0.24 25);
@@ -165,21 +165,22 @@
   --ring: oklch(0.86 0.25 145);
   --up: oklch(0.86 0.25 145);
   --down: oklch(0.68 0.25 20);
+  --telemetry: oklch(0.81 0.13 205);
   --radius: 0.25rem;
 }
 @theme inline {
   --color-up: var(--up);
   --color-down: var(--down);
+  --color-telemetry: var(--telemetry);
   --font-sans: "Space Grotesk", ui-sans-serif, system-ui, sans-serif;
   --font-mono: "JetBrains Mono", ui-monospace, monospace;
 }
 
 html, body { background: var(--background); }
 @utility glass {
-  background: color-mix(in oklch, var(--card) 38%, transparent);
-  backdrop-filter: blur(6px) saturate(130%);
-  border: 1px solid color-mix(in oklch, var(--primary) 22%, transparent);
-  box-shadow: 0 0 24px -8px color-mix(in oklch, var(--primary) 45%, transparent), inset 0 0 0 1px color-mix(in oklch, var(--primary) 8%, transparent);
+  background: color-mix(in oklch, var(--card) 96%, transparent);
+  border: 1px solid color-mix(in oklch, var(--primary) 32%, var(--card));
+  box-shadow: inset 0 1px 0 color-mix(in oklch, var(--foreground) 5%, transparent);
 }
 @utility text-glow { text-shadow: 0 0 18px color-mix(in oklch, var(--primary) 70%, transparent); }
 
@@ -192,3 +193,21 @@ html, body { background: var(--background); }
 @utility scanlines {
   background-image: repeating-linear-gradient(0deg, color-mix(in oklch, var(--background) 60%, transparent) 0 1px, transparent 1px 3px);
 }
+
+.terminal-wallpaper { opacity: .45; }
+.terminal-backdrop { background: color-mix(in oklch, var(--background) 56%, transparent); }
+.terminal-header { background: var(--background); border-bottom: 1px solid var(--border); }
+.terminal-identity { position: relative; overflow: hidden; border-bottom: 1px solid var(--border); }
+.terminal-identity-image { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; object-position: 50% 42%; opacity: .33; }
+.terminal-identity-inner { position: relative; background: color-mix(in oklch, var(--background) 58%, transparent); }
+.terminal-workspace h2 { display: flex; flex-wrap: wrap; align-items: center; gap: .5rem; padding-bottom: .65rem; border-bottom: 1px solid var(--border); margin-bottom: .75rem; color: var(--foreground); font-size: 14px; }
+.terminal-workspace h2::before { content: '//'; color: var(--primary); }
+.terminal-workspace input:not([type='checkbox']):not([type='range']), .terminal-workspace select { min-width: 0; max-width: 100%; }
+.terminal-workspace input:focus-visible, .terminal-workspace select:focus-visible { outline: 2px solid var(--ring); outline-offset: 2px; }
+.terminal-workspace button { white-space: normal; height: auto; min-height: 32px; }
+.terminal-workspace table th { padding: .65rem .4rem; }
+.terminal-workspace table td { padding: .5rem .4rem; }
+.terminal-workspace .chart-3d { perspective: none; background: repeating-linear-gradient(0deg, transparent 0 47px, var(--border) 47px 48px); }
+.terminal-workspace .chart-3d > svg { transform: none; filter: none; }
+.terminal-workspace .chart-3d:hover > svg { transform: none; }
+@media (prefers-reduced-motion: reduce) { .animate-pulse { animation: none; } }

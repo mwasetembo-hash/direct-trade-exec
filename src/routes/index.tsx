@@ -10,13 +10,16 @@ import { runsSignal } from "@/lib/runs";
 import { analyzePatterns, runSetup, SETUPS, type SetupId } from "@/lib/patterns";
 import { Journal } from "@/components/Journal";
 import { Profiles } from "@/components/Profiles";
+import { Button } from "@/components/ui/button";
+import { Activity, Cpu, ShieldCheck, Terminal, Zap } from "lucide-react";
+import terminalEmblem from "@/assets/terminal-emblem.jpeg.asset.json";
 
 export const Route = createFileRoute("/")({
   head: () => ({
     meta: [
-      { title: "Mwase Deriv Hybrid — Only Ups/Downs Trading Terminal" },
+      { title: "MWASE HYBRID_EXEC — Cyber Trading Terminal" },
       { name: "description", content: "Demo-first Deriv terminal with an Only Ups / Only Downs engine, every contract type, AI analysis, saved profiles and strict loss limits." },
-      { property: "og:title", content: "Mwase Deriv Hybrid — Only Ups/Downs Trading Terminal" },
+      { property: "og:title", content: "MWASE HYBRID_EXEC — Cyber Trading Terminal" },
       { property: "og:description", content: "Every Deriv market, contract-specific signals, a ranking scanner and autopilot with risk limits." },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary_large_image" },
@@ -348,8 +351,8 @@ function Dashboard() {
   return (
     <div className="relative isolate min-h-screen font-mono text-foreground">
       <MatrixBackground />
-      <header className="glass sticky top-0 z-10 flex flex-wrap items-center justify-between gap-3 px-4 py-3">
-        <h1 className="text-glow text-xl font-bold tracking-tight"><span className="font-mono">root@mwase:~$</span> <span className="text-primary">HYBRID_EXEC</span><span className="animate-pulse text-primary">_</span></h1>
+      <header className="terminal-header sticky top-0 z-10 flex flex-wrap items-center justify-between gap-3 px-4 py-3">
+        <h1 className="text-glow text-base font-bold sm:text-xl"><span className="font-mono">root@mwase:~$</span> <span className="text-primary">HYBRID_EXEC</span><span className="animate-pulse text-primary">_</span></h1>
         <div className="hidden flex-1 justify-center gap-4 font-mono text-xs md:flex">
           <span>EQUITY <b>{balance != null ? balance.toFixed(2) : "—"}</b></span>
           <span>P/L <b className={net >= 0 ? "text-up" : "text-down"}>{net.toFixed(2)}</b></span>
@@ -362,7 +365,27 @@ function Dashboard() {
         </div>
       </header>
 
-      <main className="mx-auto grid max-w-7xl grid-cols-1 [&>*]:min-w-0 gap-4 p-4 lg:grid-cols-3">
+      <section className="terminal-identity">
+        <img className="terminal-identity-image" src={terminalEmblem.url} alt="" aria-hidden />
+        <div className="terminal-identity-inner">
+          <div className="mx-auto max-w-7xl px-4 py-7 sm:px-6 sm:py-9">
+            <div className="mb-3 flex flex-wrap items-center gap-3 text-xs text-telemetry"><Terminal size={15} /> MWASE / OPERATIONS TERMINAL <span className="text-muted-foreground">SYS.03</span></div>
+            <h2 className="font-sans text-3xl font-bold sm:text-4xl">HYBRID<span className="text-primary">_EXEC</span></h2>
+            <div className="mt-3 flex flex-wrap gap-x-6 gap-y-2 text-xs">
+              <span className="flex items-center gap-2"><Cpu size={14} className="text-primary" /> 3 STRATEGY ENGINES</span>
+              <span className="flex items-center gap-2"><ShieldCheck size={14} className="text-telemetry" /> TREND CONFIRMATION</span>
+              <span className="flex items-center gap-2"><Zap size={14} className="text-primary" /> TICK EXECUTION</span>
+            </div>
+            <div className="mt-7 grid grid-cols-2 gap-x-5 gap-y-4 border-t border-border pt-4 text-xs md:grid-cols-4">
+              <div><div className="mb-1 text-muted-foreground">01 / MARKET FEED</div><div className={status === "on" ? "text-up" : "text-telemetry"}>{status === "on" ? `${prices.length} TICKS LOADED` : status === "connecting" ? "CONNECTING" : "AWAITING CONNECTION"}</div></div>
+              <div><div className="mb-1 text-muted-foreground">02 / PATTERN ENGINE</div><div>{directional ? `SETUP ${setupId} · ${pat?.hits.length ?? 0} PATTERNS` : def.label}</div></div>
+              <div><div className="mb-1 text-muted-foreground">03 / CONFIRMATION</div><div className={sig.side === null ? "text-telemetry" : "text-up"}>{sig.side === null ? "WAITING FOR SETUP" : `${def.sides[sig.side]} · ${sig.confidence}% SCORE`}</div></div>
+              <div><div className="mb-1 text-muted-foreground">04 / ORDER ENGINE</div><div className="flex items-center gap-2"><Activity size={13} className={auto ? "text-up" : "text-telemetry"} />{busy ? "ORDER IN PROGRESS" : auto ? "AUTOPILOT ACTIVE" : "STANDBY"}</div></div>
+            </div>
+          </div>
+        </div>
+      </section>
+      <main className="terminal-workspace mx-auto grid max-w-7xl grid-cols-1 items-start [&>*]:min-w-0 gap-4 p-4 lg:grid-cols-3">
         <section className="space-y-3 glass rounded-sm p-4">
           <h2 className="font-semibold">Deriv connection</h2>
           <label className="block text-xs text-muted-foreground">App ID
@@ -379,9 +402,9 @@ function Dashboard() {
             </label>
           )}
           <p className="text-xs text-muted-foreground">Get both from developers.deriv.com. Saved only in this browser. Use a demo token to test.</p>
-          <button onClick={connect} disabled={status === "connecting"} className="w-full rounded-md bg-primary py-2 font-semibold text-primary-foreground disabled:opacity-50">
+          <Button variant="ghost" onClick={connect} disabled={status === "connecting"} className="w-full rounded-md bg-primary py-2 font-semibold text-primary-foreground disabled:opacity-50">
             {status === "on" ? "Reconnect" : status === "connecting" ? "Connecting…" : "Connect"}
-          </button>
+          </Button>
           {error && <p className="text-sm text-down">{error}</p>}
         </section>
 
@@ -415,7 +438,7 @@ function Dashboard() {
               </select>
               <span className="ml-auto font-mono text-lg">{last?.toFixed(decimals) ?? "—"}</span>
             </div>
-            <div className="chart-3d"><svg viewBox="0 0 400 100" preserveAspectRatio="none" className="h-48 w-full">
+            <div className="chart-3d relative">{!view.length && <div className="absolute inset-0 flex items-center justify-center text-xs text-muted-foreground">AWAITING LIVE MARKET DATA</div>}<svg viewBox="0 0 400 100" preserveAspectRatio="none" className="h-48 w-full">
               <defs><linearGradient id="fillg" x1="0" x2="0" y1="0" y2="1"><stop offset="0%" stopColor="var(--up)" stopOpacity="0.35" /><stop offset="100%" stopColor="var(--up)" stopOpacity="0" /></linearGradient></defs>
               {pts && <polygon points={`0,100 ${pts} ${(view.length - 1) * 4},100`} fill="url(#fillg)" />}
               {def.barrier === "offset" && last != null && <line x1="0" x2="400" y1={100 - ((last + offset - min) / (max - min || 1)) * 100} y2={100 - ((last + offset - min) / (max - min || 1)) * 100} stroke="var(--primary)" strokeDasharray="4 3" strokeWidth="0.8" />}
@@ -439,9 +462,9 @@ function Dashboard() {
                 {stats.counts.map((c, d) => {
                   const p = stats.total ? (c / stats.total) * 100 : 0;
                   return (
-                    <button key={d} onClick={() => setDigit(d)} className={`rounded border py-1 ${d === digit ? "border-primary bg-primary/20" : "border-border"} ${p >= 12 ? "text-up" : p <= 8 ? "text-down" : ""}`}>
+                    <Button variant="ghost" key={d} onClick={() => setDigit(d)} className={`rounded border py-1 ${d === digit ? "border-primary bg-primary/20" : "border-border"} ${p >= 12 ? "text-up" : p <= 8 ? "text-down" : ""}`}>
                       <div className="font-bold">{d}</div><div>{p.toFixed(0)}%</div>
-                    </button>
+                    </Button>
                   );
                 })}
               </div>
@@ -466,8 +489,8 @@ function Dashboard() {
                 )}
               </div>
               <div className="flex gap-2">
-                <button disabled={status !== "on" || busy} onClick={() => placeTrade(0, stake)} className="rounded-md bg-up px-5 py-3 font-bold text-primary-foreground disabled:opacity-40">{def.sides[0]}</button>
-                <button hidden={!!def.single} disabled={status !== "on" || busy} onClick={() => placeTrade(1, stake)} className="rounded-md bg-down px-5 py-3 font-bold text-primary-foreground disabled:opacity-40">{def.sides[1]}</button>
+                <Button variant="ghost" disabled={status !== "on" || busy} onClick={() => placeTrade(0, stake)} className="rounded-md bg-up px-5 py-3 font-bold text-primary-foreground disabled:opacity-40">{def.sides[0]}</Button>
+                <Button variant="ghost" hidden={!!def.single} disabled={status !== "on" || busy} onClick={() => placeTrade(1, stake)} className="rounded-md bg-down px-5 py-3 font-bold text-primary-foreground disabled:opacity-40">{def.sides[1]}</Button>
               </div>
             </div>
           </div>
@@ -477,9 +500,9 @@ function Dashboard() {
           <h2 className="font-semibold">Trade parameters & risk</h2>
           <div className="grid grid-cols-3 gap-1 rounded-md bg-muted p-1 text-xs">
             {(def.single ? (["SIGNAL"] as Mode[]) : (["SIDE_A", "SIDE_B", "SIGNAL"] as Mode[])).map((m) => (
-              <button key={m} onClick={() => setMode(m)} className={`rounded py-1.5 ${mode === m ? "bg-primary text-primary-foreground" : ""}`}>
+              <Button variant="ghost" key={m} onClick={() => setMode(m)} className={`rounded py-1.5 ${mode === m ? "bg-primary text-primary-foreground" : ""}`}>
                 {m === "SIDE_A" ? `Always ${def.sides[0].replace(/[▲▼] /, "")}` : m === "SIDE_B" ? `Always ${def.sides[1].replace(/[▲▼] /, "")}` : "Auto direction"}
-              </button>
+              </Button>
             ))}
           </div>
           <div className="grid grid-cols-2 gap-2 [&>*]:min-w-0">
@@ -507,7 +530,7 @@ function Dashboard() {
               <div className="col-span-2 flex flex-col gap-1 text-xs text-muted-foreground">Trade setup
                 <div className="grid grid-cols-1 gap-1">
                   {(Object.keys(SETUPS) as SetupId[]).map((id) => (
-                    <button key={id} type="button" onClick={() => setSetupId(id)} className={`rounded-md border px-2 py-1.5 text-left font-mono ${setupId === id ? "border-primary bg-primary/15 text-primary" : "border-border text-foreground"}`}><span className="block">{id}: {SETUPS[id]}</span><span className="block truncate text-[10px] text-muted-foreground">{runSetup(id, prices, sensitivity).note}</span><span className="block text-[10px] text-muted-foreground">{(() => { const t = trades.filter((x) => x.setup === id && x.profit !== null); const w = t.filter((x) => (x.profit ?? 0) > 0).length; const n = t.reduce((a, x) => a + (x.profit ?? 0), 0); return `${w}W / ${t.length - w}L · net ${n.toFixed(2)}`; })()}</span></button>
+                    <Button variant="ghost" key={id} type="button" onClick={() => setSetupId(id)} className={`flex-col items-stretch gap-1 rounded-md border px-3 py-2 text-left font-mono ${setupId === id ? "border-primary bg-primary/15 text-primary" : "border-border text-foreground"}`}><span className="block">{id}: {SETUPS[id]}</span><span className="block whitespace-normal text-xs text-muted-foreground">{runSetup(id, prices, sensitivity).note}</span><span className="block text-xs text-muted-foreground">{(() => { const t = trades.filter((x) => x.setup === id && x.profit !== null); const w = t.filter((x) => (x.profit ?? 0) > 0).length; const n = t.reduce((a, x) => a + (x.profit ?? 0), 0); return `${w}W / ${t.length - w}L · net ${n.toFixed(2)}`; })()}</span></Button>
                   ))}
                 </div>
               </div>
@@ -529,9 +552,9 @@ function Dashboard() {
             {num(maxTrades, setMaxTrades, "Max trades")}
           </div>
           {auto ? (
-            <button onClick={() => { setAuto(false); addLog("Autopilot OFF"); }} className="w-full rounded-md bg-down py-3 font-bold text-primary-foreground">STOP AUTOPILOT</button>
+            <Button variant="ghost" onClick={() => { setAuto(false); addLog("Autopilot OFF"); }} className="w-full rounded-md bg-down py-3 font-bold text-primary-foreground">STOP AUTOPILOT</Button>
           ) : (
-            <button disabled={status !== "on"} onClick={startAuto} className="w-full rounded-md bg-up py-3 font-bold text-primary-foreground disabled:opacity-40">START AUTOPILOT</button>
+            <Button variant="ghost" disabled={status !== "on"} onClick={startAuto} className="w-full rounded-md bg-up py-3 font-bold text-primary-foreground disabled:opacity-40">START AUTOPILOT</Button>
           )}
           <p className="text-xs text-muted-foreground">No strategy guarantees profit. Autopilot runs on demo accounts only, uses a fixed stake (no martingale), pauses after each trade, and stops at your loss limit, profit target, trade cap or loss streak.</p>
         </section>
@@ -539,9 +562,9 @@ function Dashboard() {
         <section className="glass rounded-sm p-4 lg:col-span-2">
           <div className="mb-2 flex items-center justify-between">
             <h2 className="font-semibold">Market scanner</h2>
-            <button disabled={status !== "on" || scanning} onClick={runScan} className="rounded-md bg-primary px-3 py-1.5 text-sm font-semibold text-primary-foreground disabled:opacity-40">
+            <Button variant="ghost" disabled={status !== "on" || scanning} onClick={runScan} className="rounded-md bg-primary px-3 py-1.5 text-sm font-semibold text-primary-foreground disabled:opacity-40">
               {scanning ? `Scanning… ${scan.length}` : "Scan all markets"}
-            </button>
+            </Button>
           </div>
           {status !== "on" && <p className="text-xs text-muted-foreground">Connect to rank all {instruments.length} instruments by trend strength and signal confidence.</p>}
           <div className="max-h-80 overflow-auto">
@@ -553,7 +576,7 @@ function Dashboard() {
                     <td>{i + 1}</td><td>{r.name}</td><td className="text-muted-foreground">{r.group}</td>
                     <td className="text-center">{r.trend}</td><td className="text-center">{r.conf}%</td>
                     <td className={`text-center font-bold ${r.dir === "UP" ? "text-up" : r.dir === "DOWN" ? "text-down" : ""}`}>{r.dir}</td>
-                    <td><button onClick={() => setSymbol(r.symbol)} className="rounded border border-primary px-2 text-primary">Open</button></td>
+                    <td><Button variant="ghost" onClick={() => setSymbol(r.symbol)} className="rounded border border-primary px-2 text-primary">Open</Button></td>
                   </tr>
                 ))}
               </tbody>
