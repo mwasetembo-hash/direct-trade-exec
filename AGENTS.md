@@ -11,3 +11,4 @@
 
 - Keep cyber-terminal presentation separate from signal and order logic; visual activity must reflect real connection and execution state.
 - Reference uploaded terminal imagery through Lovable Assets pointers to keep binary media out of source control.
+- Prebundle terminal UI dependencies in Vite optimizeDeps so lazy route discovery does not invalidate React chunks during active preview sessions.
