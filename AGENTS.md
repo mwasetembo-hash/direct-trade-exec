@@ -12,3 +12,5 @@
 - Keep cyber-terminal presentation separate from signal and order logic; visual activity must reflect real connection and execution state.
 - Reference uploaded terminal imagery through Lovable Assets pointers to keep binary media out of source control.
 - Prebundle terminal UI dependencies in Vite optimizeDeps so lazy route discovery does not invalidate React chunks during active preview sessions.
+- Keep balance protection and demo performance calculations in browser-safe trading-session helpers with focused tests; only confirmed settlement counts as a result.
+- Tag session trades with the executing account and demo status so strategy comparisons never mix accounts or real-money results.

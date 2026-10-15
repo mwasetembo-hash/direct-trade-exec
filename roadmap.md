@@ -1,4 +1,4 @@
 # Tasks
-- [x] Add uploaded cyber imagery and improve terminal readability.
-- [x] Surface actual connection, confirmation, and execution states without changing trading rules.
-- [x] Verify appearance and strategy regression tests.
+- [ ] Add a live mining-style console and demo-only strategy comparison.
+- [ ] Enforce adjustable balance-based stake protection without weakening confirmation rules.
+- [ ] Verify risk rules, real-result accounting, and console controls.
