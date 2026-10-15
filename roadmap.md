@@ -1,4 +1,4 @@
 # Tasks
-- [ ] Add uploaded cyber imagery and improve terminal readability.
-- [ ] Surface actual connection, confirmation, and execution states without changing trading rules.
-- [ ] Verify appearance and strategy regression tests.
+- [x] Add uploaded cyber imagery and improve terminal readability.
+- [x] Surface actual connection, confirmation, and execution states without changing trading rules.
+- [x] Verify appearance and strategy regression tests.
