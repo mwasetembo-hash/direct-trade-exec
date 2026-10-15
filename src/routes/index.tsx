@@ -385,7 +385,7 @@ function Dashboard() {
           </div>
         </div>
       </section>
-      <main className="terminal-workspace mx-auto grid max-w-7xl grid-cols-1 [&>*]:min-w-0 gap-4 p-4 lg:grid-cols-3">
+      <main className="terminal-workspace mx-auto grid max-w-7xl grid-cols-1 items-start [&>*]:min-w-0 gap-4 p-4 lg:grid-cols-3">
         <section className="space-y-3 glass rounded-sm p-4">
           <h2 className="font-semibold">Deriv connection</h2>
           <label className="block text-xs text-muted-foreground">App ID
@@ -530,7 +530,7 @@ function Dashboard() {
               <div className="col-span-2 flex flex-col gap-1 text-xs text-muted-foreground">Trade setup
                 <div className="grid grid-cols-1 gap-1">
                   {(Object.keys(SETUPS) as SetupId[]).map((id) => (
-                    <Button variant="ghost" key={id} type="button" onClick={() => setSetupId(id)} className={`rounded-md border px-2 py-1.5 text-left font-mono ${setupId === id ? "border-primary bg-primary/15 text-primary" : "border-border text-foreground"}`}><span className="block">{id}: {SETUPS[id]}</span><span className="block whitespace-normal text-xs text-muted-foreground">{runSetup(id, prices, sensitivity).note}</span><span className="block text-[10px] text-muted-foreground">{(() => { const t = trades.filter((x) => x.setup === id && x.profit !== null); const w = t.filter((x) => (x.profit ?? 0) > 0).length; const n = t.reduce((a, x) => a + (x.profit ?? 0), 0); return `${w}W / ${t.length - w}L · net ${n.toFixed(2)}`; })()}</span></Button>
+                    <Button variant="ghost" key={id} type="button" onClick={() => setSetupId(id)} className={`flex-col items-stretch gap-1 rounded-md border px-3 py-2 text-left font-mono ${setupId === id ? "border-primary bg-primary/15 text-primary" : "border-border text-foreground"}`}><span className="block">{id}: {SETUPS[id]}</span><span className="block whitespace-normal text-xs text-muted-foreground">{runSetup(id, prices, sensitivity).note}</span><span className="block text-xs text-muted-foreground">{(() => { const t = trades.filter((x) => x.setup === id && x.profit !== null); const w = t.filter((x) => (x.profit ?? 0) > 0).length; const n = t.reduce((a, x) => a + (x.profit ?? 0), 0); return `${w}W / ${t.length - w}L · net ${n.toFixed(2)}`; })()}</span></Button>
                   ))}
                 </div>
               </div>
