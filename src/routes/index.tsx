@@ -247,14 +247,17 @@ function Dashboard() {
     return errs;
   };
 
-  const placeTrade = useCallback(async (side: 0 | 1, amount: number) => {
+  const placeTrade = useCallback(async (pick: 0 | 1 | "both", amount: number) => {
     const c = client.current;
     if (orderLock.current) return null;
-    const errs = preflight(side, amount);
+    const sides: (0 | 1)[] = pick === "both" ? [0, 1] : [pick];
+    const errs = [...new Set(sides.flatMap((sd) => preflight(sd, amount)))];
+    if (sides.length === 2 && balance != null && amount * 2 > balance) errs.push("Both orders together exceed your balance");
     if (errs.length) { addLog(`Order blocked: ${errs.join("; ")}`); setError(errs.join(" · ")); return null; }
     if (!c || !account) return null;
     orderLock.current = true;
     setBusy(true);
+    const runOne = async (side: 0 | 1): Promise<number | null> => {
     const ct = def.types[side];
     if (!ctAvailable(ct)) addLog(`Note: ${ct} not listed for ${symbol} — asking Deriv for a quote anyway`);
     const req: Record<string, unknown> = {
@@ -314,6 +317,13 @@ function Dashboard() {
       addLog(`Order error: ${e.message}`);
       setError(e.message);
       return null;
+    }
+    };
+    try {
+      // Both sides are sent at the same moment; each settles independently.
+      const results = await Promise.all(sides.map(runOne));
+      if (results.some((r) => r === null)) return null;
+      return results.reduce<number>((a, r) => a + (r ?? 0), 0);
     } finally { orderLock.current = false; setBusy(false); }
   }, [account, duration, unit, symbol, def, digit, offset, hi, lo, selectedTick, multiplier, growthRate, tpAmt, slAmt, available, status, balance, riskPercent, maxStake, trades, prices.length, setupId, directional]); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -527,6 +537,7 @@ function Dashboard() {
               <div className="flex gap-2">
                 <Button variant="ghost" disabled={status !== "on" || busy} onClick={() => placeTrade(0, stake)} className="rounded-md bg-up px-5 py-3 font-bold text-primary-foreground disabled:opacity-40">{def.sides[0]}</Button>
                 <Button variant="ghost" hidden={!!def.single} disabled={status !== "on" || busy} onClick={() => placeTrade(1, stake)} className="rounded-md bg-down px-5 py-3 font-bold text-primary-foreground disabled:opacity-40">{def.sides[1]}</Button>
+                <Button variant="ghost" hidden={!!def.single} disabled={status !== "on" || busy} onClick={() => placeTrade("both", stake)} className="col-span-full rounded-md border border-primary px-5 py-3 font-bold text-primary disabled:opacity-40">⚡ Double execute: {def.sides[0]} + {def.sides[1]}</Button>
               </div>
             </div>
           </div>
