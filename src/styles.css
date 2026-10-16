@@ -203,6 +203,7 @@ html, body { background: var(--background); }
 .terminal-workspace h2 { display: flex; flex-wrap: wrap; align-items: center; gap: .5rem; padding-bottom: .65rem; border-bottom: 1px solid var(--border); margin-bottom: .75rem; color: var(--foreground); font-size: 14px; }
 .terminal-workspace h2::before { content: '//'; color: var(--primary); }
 .terminal-workspace input:not([type='checkbox']):not([type='range']), .terminal-workspace select { min-width: 0; max-width: 100%; }
+.terminal-workspace label { min-width: 0; max-width: 100%; }
 .terminal-workspace input:focus-visible, .terminal-workspace select:focus-visible { outline: 2px solid var(--ring); outline-offset: 2px; }
 .terminal-workspace button { white-space: normal; height: auto; min-height: 32px; }
 .terminal-workspace table th { padding: .65rem .4rem; }
