@@ -13,14 +13,16 @@ import { Profiles } from "@/components/Profiles";
 import { Button } from "@/components/ui/button";
 import { Activity, Cpu, ShieldCheck, Terminal, Zap } from "lucide-react";
 import terminalEmblem from "@/assets/terminal-emblem.jpeg.asset.json";
+import { ExecutionConsole } from "@/components/ExecutionConsole";
+import { balanceStakeCap, stakeProtection, demoStrategyStats } from "@/lib/trading-session";
 
 export const Route = createFileRoute("/")({
   head: () => ({
     meta: [
       { title: "MWASE HYBRID_EXEC — Cyber Trading Terminal" },
-      { name: "description", content: "Demo-first Deriv terminal with an Only Ups / Only Downs engine, every contract type, AI analysis, saved profiles and strict loss limits." },
+      { name: "description", content: "Mwase Signal Forge: three trend-confirmed strategies, demo performance comparison, balance-based stake protection and confirmed Deriv trading results." },
       { property: "og:title", content: "MWASE HYBRID_EXEC — Cyber Trading Terminal" },
-      { property: "og:description", content: "Every Deriv market, contract-specific signals, a ranking scanner and autopilot with risk limits." },
+      { property: "og:description", content: "A cyber trading console with demo strategy comparison, balance-based protection and real order states. No guaranteed profits." },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary_large_image" },
     ],
@@ -29,7 +31,7 @@ export const Route = createFileRoute("/")({
 });
 
 type Mode = "SIDE_A" | "SIDE_B" | "SIGNAL";
-type Trade = { id: number; label: string; stake: number; profit: number | null; symbol: string; time: string; setup?: string | undefined };
+type Trade = { id: number; label: string; stake: number; profit: number | null; symbol: string; time: string; setup?: string | undefined; demo?: boolean; accountId?: string };
 type ScanRow = { symbol: string; name: string; group: string; trend: number; conf: number; dir: string };
 type Unit = "t" | "s" | "m";
 
@@ -74,6 +76,9 @@ function Dashboard() {
   const [takeProfit, setTakeProfit] = useState(10);
   const [maxTrades, setMaxTrades] = useState(50);
   const [maxStake, setMaxStake] = useState(10);
+  const [riskPercent, setRiskPercent] = useState(1);
+  const [reconciling, setReconciling] = useState(false);
+  const orderLock = useRef(false);
   const [lossStreakStop, setLossStreakStop] = useState(3);
   const [auto, setAuto] = useState(false);
   const [busy, setBusy] = useState(false);
@@ -108,10 +113,10 @@ function Dashboard() {
     if (def.single) setMode("SIGNAL");
   }, [kind]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  const settings = { symbol, kind, mode, stake, duration, unit, digit, offset, hi, lo, minConf, maxLoss, takeProfit, maxTrades, lossStreakStop, sensitivity, setupId, cooldown, selectedTick, multiplier, growthRate, tpAmt, slAmt, brainGate };
+  const settings = { symbol, kind, mode, stake, duration, unit, digit, offset, hi, lo, minConf, maxLoss, takeProfit, maxTrades, lossStreakStop, sensitivity, setupId, cooldown, selectedTick, multiplier, growthRate, tpAmt, slAmt, brainGate, riskPercent, maxStake };
   const applySettings = (c: Partial<typeof settings>) => {
-    const set: Record<string, (v: any) => void> = { symbol: setSymbol, kind: setKind, mode: setMode, stake: setStake, duration: setDuration, unit: setUnit, digit: setDigit, offset: setOffset, hi: setHi, lo: setLo, minConf: setMinConf, maxLoss: setMaxLoss, takeProfit: setTakeProfit, maxTrades: setMaxTrades, lossStreakStop: setLossStreakStop, sensitivity: setSensitivity, setupId: setSetupId, cooldown: setCooldown, selectedTick: setSelectedTick, multiplier: setMultiplier, growthRate: setGrowthRate, tpAmt: setTpAmt, slAmt: setSlAmt, brainGate: setBrainGate };
-    for (const [k, v] of Object.entries(c)) if (set[k] && v !== undefined) set[k]!(v);
+    const set: Record<string, (v: any) => void> = { symbol: setSymbol, kind: setKind, mode: setMode, stake: setStake, duration: setDuration, unit: setUnit, digit: setDigit, offset: setOffset, hi: setHi, lo: setLo, minConf: setMinConf, maxLoss: setMaxLoss, takeProfit: setTakeProfit, maxTrades: setMaxTrades, lossStreakStop: setLossStreakStop, sensitivity: setSensitivity, setupId: setSetupId, cooldown: setCooldown, selectedTick: setSelectedTick, multiplier: setMultiplier, growthRate: setGrowthRate, tpAmt: setTpAmt, slAmt: setSlAmt, brainGate: setBrainGate, riskPercent: setRiskPercent, maxStake: setMaxStake };
+    for (const [k, v] of Object.entries(c)) { const setter = set[k]; if (setter && v !== undefined) setter(v); }
   };
 
   const net = trades.reduce((s, t) => s + (t.profit ?? 0), 0);
@@ -121,7 +126,8 @@ function Dashboard() {
   const sig = kindSignal(kind, prices, decimals, { digit, offset, hi, lo, ticks: ticksEq, sensitivity });
   const directional = ["RUNS", "RISE_FALL", "HIGHER_LOWER", "ASIANS", "RESET", "MULT"].includes(kind);
   const pat = directional ? analyzePatterns(prices, sensitivity) : null;
-  const setup = directional ? runSetup(setupId, prices, sensitivity) : null;
+  const liveSetups = { A: runSetup("A", prices, sensitivity), B: runSetup("B", prices, sensitivity), C: runSetup("C", prices, sensitivity) };
+  const setup = directional ? liveSetups[setupId] : null;
   // Directional contracts trade ONLY the single trend-confirmed pattern setup.
   if (setup) { sig.side = setup.side; sig.confidence = setup.confidence; sig.note = setup.note; }
   // Non-directional contracts: fall back to momentum so orders are not blocked.
@@ -228,6 +234,9 @@ function Dashboard() {
     if (!(amount > 0)) errs.push("Stake must be above 0");
     if (amount < 0.35) errs.push("Stake below Deriv minimum (0.35)");
     if (amount > maxStake) errs.push(`Stake ${amount} above your cap ${maxStake}`);
+    const protection = stakeProtection(amount, balance, riskPercent, maxStake);
+    if (protection) errs.push(protection);
+    if (trades.some(t => t.accountId === account?.loginid && t.profit === null)) errs.push("An earlier order is unresolved; check it before trading again");
     if (balance != null && amount > balance) errs.push("Stake is larger than your balance");
     if (def.single && side === 1) errs.push(`${def.label} has only one side`);
     if (def.ticks && (duration < def.ticks[0] || duration > def.ticks[1])) errs.push(`${def.label} needs ${def.ticks[0]}-${def.ticks[1]} ticks`);
@@ -240,9 +249,11 @@ function Dashboard() {
 
   const placeTrade = useCallback(async (side: 0 | 1, amount: number) => {
     const c = client.current;
+    if (orderLock.current) return null;
     const errs = preflight(side, amount);
     if (errs.length) { addLog(`Order blocked: ${errs.join("; ")}`); setError(errs.join(" · ")); return null; }
     if (!c || !account) return null;
+    orderLock.current = true;
     setBusy(true);
     const ct = def.types[side];
     if (!ctAvailable(ct)) addLog(`Note: ${ct} not listed for ${symbol} — asking Deriv for a quote anyway`);
@@ -282,28 +293,29 @@ function Dashboard() {
       }
       const id = Number(b?.buy?.contract_id);
       if (!id) throw new Error("Deriv did not confirm the order");
-      setTrades((t) => [{ id, label, stake: amount, profit: null, symbol, setup: directional ? setupId : undefined, time: new Date().toLocaleTimeString() }, ...t]);
+      setTrades((t) => [{ id, label, stake: amount, profit: null, symbol, setup: directional ? setupId : undefined, demo: account.isVirtual, accountId: account.loginid, time: new Date().toLocaleTimeString() }, ...t]);
       addLog(`BUY ${label} ${amount.toFixed(2)} on ${symbol} #${id}`);
-      const result = await new Promise<number>((resolve) => {
+      const result = await new Promise<number | null>((resolve) => {
         let done = false;
-        const finish = (v: number) => { if (done) return; done = true; off(); clearInterval(poll); clearTimeout(cap); resolve(v); };
-        const check = (poc: any) => { if (poc && Number(poc.contract_id) === id && (poc.is_sold || poc.status === "won" || poc.status === "lost" || poc.is_expired)) finish(Number(poc.profit ?? 0)); };
+        const finish = (v: number | null) => { if (done) return; done = true; off(); clearInterval(poll); clearTimeout(cap); resolve(v); };
+        const check = (poc: any) => { if (poc && Number(poc.contract_id) === id && (poc.is_sold || poc.status === "won" || poc.status === "lost" )) Number.isFinite(Number(poc.profit)) && poc.profit != null && finish(Number(poc.profit)); };
         const off = c.on("proposal_open_contract", (m) => check(m.proposal_open_contract));
         c.send({ proposal_open_contract: 1, contract_id: id, subscribe: 1 }).then((m) => check(m?.proposal_open_contract)).catch(() => {});
         // Poll every 3s in case the live stream drops; never leave the bot stuck.
         const poll = setInterval(() => { c.send({ proposal_open_contract: 1, contract_id: id }).then((m) => check(m?.proposal_open_contract)).catch(() => {}); }, 3000);
-        const cap = setTimeout(() => { addLog(`#${id} still open after 3 min — releasing bot`); finish(0); }, def.open ? 30 * 60_000 : 180_000);
+        const cap = setTimeout(() => { addLog(`#${id} settlement unconfirmed — autopilot paused; check unresolved orders`); setAuto(false); finish(null); }, def.open ? 30 * 60_000 : 180_000);
       });
+      if (result === null) return null;
       lastSettle.current = Date.now();
       setTrades((t) => t.map((x) => (x.id === id ? { ...x, profit: result } : x)));
-      addLog(`${result > 0 ? "WIN" : "LOSS"} #${id}: ${result.toFixed(2)}`);
+      addLog(`${result > 0 ? "WIN" : result < 0 ? "LOSS" : "FLAT"} #${id}: ${result.toFixed(2)}`);
       return result;
     } catch (e: any) {
       addLog(`Order error: ${e.message}`);
       setError(e.message);
       return null;
-    } finally { setBusy(false); }
-  }, [account, duration, unit, symbol, def, digit, offset, hi, lo, selectedTick, multiplier, growthRate, tpAmt, slAmt, available]); // eslint-disable-line react-hooks/exhaustive-deps
+    } finally { orderLock.current = false; setBusy(false); }
+  }, [account, duration, unit, symbol, def, digit, offset, hi, lo, selectedTick, multiplier, growthRate, tpAmt, slAmt, available, status, balance, riskPercent, maxStake, trades, prices.length, setupId, directional]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     if (!auto || busy || status !== "on") return;
@@ -319,20 +331,43 @@ function Dashboard() {
     if (brainGate && (!brain || brain.side !== sig.side)) return wait("AI Brain does not agree yet");
     if (mode === "SIDE_A" && sig.side !== 0) return wait(`signal is ${def.sides[1]}, you chose ${def.sides[0]} only`);
     if (mode === "SIDE_B" && sig.side !== 1) return wait(`signal is ${def.sides[0]}, you chose ${def.sides[1]} only`);
-    const amt = curStake.current;
+    const amt = stake;
+    const errors = preflight(sig.side, amt);
+    if (errors.length) { setAuto(false); setError(errors.join(" · ")); addLog(`Autopilot paused: ${errors.join("; ")}`); return; }
     placeTrade(sig.side, amt).then((r) => {
       if (r == null) return;
-      streak.current = r > 0 ? 0 : streak.current + 1;
+      streak.current = r > 0 ? 0 : r < 0 ? streak.current + 1 : streak.current;
       curStake.current = Math.min(stake, maxStake); // fixed stake — no martingale
     });
-  }, [auto, busy, prices.length]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [auto, busy, prices, status, net, stake, maxStake, riskPercent, balance, maxLoss, takeProfit, maxTrades, lossStreakStop, cooldown, minConf, brainGate, brain, mode, trades.length]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const startAuto = () => {
     if (!account?.isVirtual) { setError("Autopilot is locked to DEMO accounts. Switch to your demo (VRTC) account to run it."); return; }
+    const errors = preflight(sig.side ?? 0, stake);
+    if (errors.length) { setError(errors.join(" · ")); return; }
     curStake.current = stake;
-    streak.current = 0;
     setAuto(true);
     addLog(`Autopilot ON (${def.label})`);
+  };
+
+  const reconcileOrders = async () => {
+    const c = client.current;
+    if (!c || !account || reconciling || orderLock.current) return;
+    setReconciling(true);
+    try {
+      for (const trade of trades.filter(t => t.accountId === account.loginid && t.profit === null)) {
+        const response = await c.send({ proposal_open_contract: 1, contract_id: trade.id });
+        const contract = response.proposal_open_contract;
+        if (contract && (contract.is_sold || contract.status === "won" || contract.status === "lost") && contract.profit != null && Number.isFinite(Number(contract.profit))) {
+          const profit = Number(contract.profit);
+          setTrades(rows => rows.map(t => t.id === trade.id ? { ...t, profit } : t));
+          streak.current = profit > 0 ? 0 : profit < 0 ? streak.current + 1 : streak.current;
+          lastSettle.current = Date.now();
+          addLog(`Settlement confirmed #${trade.id}: ${profit.toFixed(2)}`);
+        } else addLog(`#${trade.id} still unresolved — no result recorded`);
+      }
+    } catch (e) { setError(e instanceof Error ? e.message : "Unable to check unresolved orders"); }
+    finally { setReconciling(false); }
   };
 
   const last = prices[prices.length - 1];
@@ -386,6 +421,7 @@ function Dashboard() {
         </div>
       </section>
       <main className="terminal-workspace mx-auto grid max-w-7xl grid-cols-1 items-start [&>*]:min-w-0 gap-4 p-4 lg:grid-cols-3">
+        <ExecutionConsole trades={trades} accountId={account?.loginid} demo={account?.isVirtual ?? false} connected={status === "on"} auto={auto} busy={busy} balance={balance} riskPercent={riskPercent} maxStake={maxStake} setupId={setupId} setups={liveSetups} onSelect={setSetupId} onReconcile={reconcileOrders} reconciling={reconciling} />
         <section className="space-y-3 glass rounded-sm p-4">
           <h2 className="font-semibold">Deriv connection</h2>
           <label className="block text-xs text-muted-foreground">App ID
@@ -530,7 +566,7 @@ function Dashboard() {
               <div className="col-span-2 flex flex-col gap-1 text-xs text-muted-foreground">Trade setup
                 <div className="grid grid-cols-1 gap-1">
                   {(Object.keys(SETUPS) as SetupId[]).map((id) => (
-                    <Button variant="ghost" key={id} type="button" onClick={() => setSetupId(id)} className={`flex-col items-stretch gap-1 rounded-md border px-3 py-2 text-left font-mono ${setupId === id ? "border-primary bg-primary/15 text-primary" : "border-border text-foreground"}`}><span className="block">{id}: {SETUPS[id]}</span><span className="block whitespace-normal text-xs text-muted-foreground">{runSetup(id, prices, sensitivity).note}</span><span className="block text-xs text-muted-foreground">{(() => { const t = trades.filter((x) => x.setup === id && x.profit !== null); const w = t.filter((x) => (x.profit ?? 0) > 0).length; const n = t.reduce((a, x) => a + (x.profit ?? 0), 0); return `${w}W / ${t.length - w}L · net ${n.toFixed(2)}`; })()}</span></Button>
+                    <Button variant="ghost" key={id} type="button" onClick={() => setSetupId(id)} disabled={busy || auto} className={`flex-col items-stretch gap-1 rounded-md border px-3 py-2 text-left font-mono ${setupId === id ? "border-primary bg-primary/15 text-primary" : "border-border text-foreground"}`}><span className="block">{id}: {SETUPS[id]}</span><span className="block whitespace-normal text-xs text-muted-foreground">{liveSetups[id].note}</span><span className="block text-xs text-muted-foreground">{(() => { const s = demoStrategyStats(trades, id, account?.loginid); return `${s.wins}W / ${s.losses}L / ${s.flat} flat · demo net ${s.net.toFixed(2)}`; })()}</span></Button>
                   ))}
                 </div>
               </div>
@@ -546,6 +582,8 @@ function Dashboard() {
             {num(minConf, setMinConf, "Min confidence %")}
             {num(cooldown, setCooldown, "Pause after trade (sec)")}
             {num(maxStake, setMaxStake, "Max stake cap", 0.1)}
+            {num(riskPercent, setRiskPercent, "Balance risk ceiling %", 0.1)}
+            <div className="col-span-2 border-l-2 border-telemetry pl-3 text-xs text-telemetry">Protected stake ceiling: {balanceStakeCap(balance, riskPercent, maxStake)?.toFixed(2) ?? "awaiting balance"} {account?.currency ?? ""}</div>
             {num(lossStreakStop, setLossStreakStop, "Stop after N losses")}
             {num(maxLoss, setMaxLoss, "Loss limit")}
             {num(takeProfit, setTakeProfit, "Profit target")}
@@ -556,7 +594,7 @@ function Dashboard() {
           ) : (
             <Button variant="ghost" disabled={status !== "on"} onClick={startAuto} className="w-full rounded-md bg-up py-3 font-bold text-primary-foreground disabled:opacity-40">START AUTOPILOT</Button>
           )}
-          <p className="text-xs text-muted-foreground">No strategy guarantees profit. Autopilot runs on demo accounts only, uses a fixed stake (no martingale), pauses after each trade, and stops at your loss limit, profit target, trade cap or loss streak.</p>
+          <p className="text-xs text-muted-foreground">No guaranteed profit. Demo-only autopilot uses your fixed stake, capped by your balance risk ceiling. No martingale. Loss, profit, trade and streak limits stay active; unresolved orders pause trading.</p>
         </section>
 
         <section className="glass rounded-sm p-4 lg:col-span-2">
