@@ -4,7 +4,7 @@ import { SETUPS, type SetupId, type runSetup } from "@/lib/patterns";
 import { balanceStakeCap, demoStrategyStats, type SessionTrade } from "@/lib/trading-session";
 
 type Props = {
-  trades: SessionTrade[]; accountId?: string; demo: boolean; connected: boolean;
+  trades: SessionTrade[]; accountId?: string | undefined; demo: boolean; connected: boolean;
   auto: boolean; busy: boolean; balance: number | null; riskPercent: number; maxStake: number;
   setupId: SetupId; setups: Record<SetupId, ReturnType<typeof runSetup>>;
   onSelect: (id: SetupId) => void; onReconcile: () => void; reconciling: boolean;
@@ -16,7 +16,7 @@ export function ExecutionConsole(p: Props) {
   const settled = p.trades.filter(t => t.accountId === p.accountId && t.profit !== null);
   const net = settled.reduce((s, t) => s + (t.profit ?? 0), 0);
   const active = p.setups[p.setupId];
-  return <section className="col-span-full border-y border-border bg-background/95 px-4 py-5 sm:px-6" aria-label="Execution mining console">
+  return <section className="col-span-full min-w-0 break-words border-y border-border bg-background/95 px-4 py-5 sm:px-6" aria-label="Execution mining console">
     <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
       <div><div className="mb-2 flex items-center gap-2 text-xs text-telemetry"><Pickaxe size={16} /> MWASE / SIGNAL FORGE</div><h2 className="!mb-0 !border-0 !pb-0 !text-lg">Execution mining console</h2></div>
       <span className={p.busy ? "text-primary" : p.auto ? "text-up" : "text-muted-foreground"}>{p.busy ? "● CONTRACT ACTIVE" : p.auto ? "● SCANNING SETUPS" : "○ STANDBY"}</span>

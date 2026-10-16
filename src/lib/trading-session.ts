@@ -1,4 +1,4 @@
-export type SessionTrade = { profit: number | null; stake: number; setup?: string; demo?: boolean; accountId?: string };
+export type SessionTrade = { profit: number | null; stake: number; setup?: string | undefined; demo?: boolean; accountId?: string | undefined };
 
 export function balanceStakeCap(balance: number | null, percent: number, maximum: number): number | null {
   if (balance === null || !Number.isFinite(balance) || balance < 0 || !Number.isFinite(percent) || percent <= 0 || percent > 100 || !Number.isFinite(maximum) || maximum <= 0) return null;
