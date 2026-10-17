@@ -178,7 +178,7 @@
 
 html, body { background: var(--background); }
 @utility glass {
-  background: color-mix(in oklch, var(--card) 70%, transparent);
+  background: color-mix(in oklch, var(--card) 45%, transparent);
   border: 1px solid color-mix(in oklch, var(--primary) 32%, var(--card));
   box-shadow: inset 0 1px 0 color-mix(in oklch, var(--foreground) 5%, transparent);
 }
@@ -194,7 +194,7 @@ html, body { background: var(--background); }
   background-image: repeating-linear-gradient(0deg, color-mix(in oklch, var(--background) 60%, transparent) 0 1px, transparent 1px 3px);
 }
 
-.terminal-wallpaper { opacity: .9; }
+.terminal-wallpaper { opacity: 1; }
 .terminal-backdrop { background: color-mix(in oklch, var(--background) 30%, transparent); }
 .terminal-header { background: var(--background); border-bottom: 1px solid var(--border); }
 .terminal-identity { position: relative; overflow: hidden; border-bottom: 1px solid var(--border); }
