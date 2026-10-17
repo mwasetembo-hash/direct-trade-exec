@@ -57,6 +57,8 @@ function Dashboard() {
   const [duration, setDuration] = useState(5);
   const [unit, setUnit] = useState<Unit>("t");
   const [digit, setDigit] = useState(5);
+  const [doubleDigit, setDoubleDigit] = useState(5);
+  const [autoDouble, setAutoDouble] = useState(false);
   const [offset, setOffset] = useState(0.5);
   const [hi, setHi] = useState(0.5);
   const [lo, setLo] = useState(-0.5);
@@ -113,9 +115,9 @@ function Dashboard() {
     if (def.single) setMode("SIGNAL");
   }, [kind]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  const settings = { symbol, kind, mode, stake, duration, unit, digit, offset, hi, lo, minConf, maxLoss, takeProfit, maxTrades, lossStreakStop, sensitivity, setupId, cooldown, selectedTick, multiplier, growthRate, tpAmt, slAmt, brainGate, riskPercent, maxStake };
+  const settings = { symbol, kind, mode, stake, duration, unit, digit, doubleDigit, autoDouble, offset, hi, lo, minConf, maxLoss, takeProfit, maxTrades, lossStreakStop, sensitivity, setupId, cooldown, selectedTick, multiplier, growthRate, tpAmt, slAmt, brainGate, riskPercent, maxStake };
   const applySettings = (c: Partial<typeof settings>) => {
-    const set: Record<string, (v: any) => void> = { symbol: setSymbol, kind: setKind, mode: setMode, stake: setStake, duration: setDuration, unit: setUnit, digit: setDigit, offset: setOffset, hi: setHi, lo: setLo, minConf: setMinConf, maxLoss: setMaxLoss, takeProfit: setTakeProfit, maxTrades: setMaxTrades, lossStreakStop: setLossStreakStop, sensitivity: setSensitivity, setupId: setSetupId, cooldown: setCooldown, selectedTick: setSelectedTick, multiplier: setMultiplier, growthRate: setGrowthRate, tpAmt: setTpAmt, slAmt: setSlAmt, brainGate: setBrainGate, riskPercent: setRiskPercent, maxStake: setMaxStake };
+    const set: Record<string, (v: any) => void> = { symbol: setSymbol, kind: setKind, mode: setMode, stake: setStake, duration: setDuration, unit: setUnit, digit: setDigit, doubleDigit: setDoubleDigit, autoDouble: setAutoDouble, offset: setOffset, hi: setHi, lo: setLo, minConf: setMinConf, maxLoss: setMaxLoss, takeProfit: setTakeProfit, maxTrades: setMaxTrades, lossStreakStop: setLossStreakStop, sensitivity: setSensitivity, setupId: setSetupId, cooldown: setCooldown, selectedTick: setSelectedTick, multiplier: setMultiplier, growthRate: setGrowthRate, tpAmt: setTpAmt, slAmt: setSlAmt, brainGate: setBrainGate, riskPercent: setRiskPercent, maxStake: setMaxStake };
     for (const [k, v] of Object.entries(c)) { const setter = set[k]; if (setter && v !== undefined) setter(v); }
   };
 
@@ -258,6 +260,7 @@ function Dashboard() {
     orderLock.current = true;
     setBusy(true);
     const runOne = async (side: 0 | 1): Promise<number | null> => {
+    const sideDigit = pick === "both" && side === 1 ? doubleDigit : digit;
     const ct = def.types[side];
     if (!ctAvailable(ct)) addLog(`Note: ${ct} not listed for ${symbol} — asking Deriv for a quote anyway`);
     const req: Record<string, unknown> = {
@@ -269,10 +272,10 @@ function Dashboard() {
     if (def.extra === "multiplier") { req["multiplier"] = multiplier; req["limit_order"] = { take_profit: tpAmt, stop_loss: slAmt }; }
     if (def.extra === "growth_rate") { req["growth_rate"] = growthRate; req["limit_order"] = { take_profit: tpAmt }; }
     const sgn = (n: number) => (n >= 0 ? `+${n}` : `${n}`);
-    if (def.barrier === "digit") req["barrier"] = String(digit);
+    if (def.barrier === "digit") req["barrier"] = String(sideDigit);
     if (def.barrier === "offset") req["barrier"] = sgn(offset);
     if (def.barrier === "range") { req["barrier"] = sgn(hi); req["barrier2"] = sgn(lo); }
-    const label = `${def.sides[side]}${def.barrier === "digit" ? ` ${digit}` : ""}`;
+    const label = `${def.sides[side]}${def.barrier === "digit" ? ` ${sideDigit}` : ""}`;
     const isRate = (e: any) => /rate limit|RateLimit/i.test(String(e?.message ?? e?.code ?? e));
     const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
     const withBackoff = async <T,>(fn: () => Promise<T>): Promise<T> => {
@@ -325,7 +328,7 @@ function Dashboard() {
       if (results.some((r) => r === null)) return null;
       return results.reduce<number>((a, r) => a + (r ?? 0), 0);
     } finally { orderLock.current = false; setBusy(false); }
-  }, [account, duration, unit, symbol, def, digit, offset, hi, lo, selectedTick, multiplier, growthRate, tpAmt, slAmt, available, status, balance, riskPercent, maxStake, trades, prices.length, setupId, directional]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [account, duration, unit, symbol, def, digit, doubleDigit, offset, hi, lo, selectedTick, multiplier, growthRate, tpAmt, slAmt, available, status, balance, riskPercent, maxStake, trades, prices.length, setupId, directional]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     if (!auto || busy || status !== "on") return;
@@ -342,14 +345,16 @@ function Dashboard() {
     if (mode === "SIDE_A" && sig.side !== 0) return wait(`signal is ${def.sides[1]}, you chose ${def.sides[0]} only`);
     if (mode === "SIDE_B" && sig.side !== 1) return wait(`signal is ${def.sides[0]}, you chose ${def.sides[1]} only`);
     const amt = stake;
-    const errors = preflight(sig.side, amt);
+    const both = autoDouble && !def.single;
+    const errors = [...new Set((both ? [0, 1] as const : [sig.side] as const).flatMap((sd) => preflight(sd, amt)))];
+    if (both && balance != null && amt * 2 > balance) errors.push("Both orders together exceed your balance");
     if (errors.length) { setAuto(false); setError(errors.join(" · ")); addLog(`Autopilot paused: ${errors.join("; ")}`); return; }
-    placeTrade(sig.side, amt).then((r) => {
+    placeTrade(both ? "both" : sig.side, amt).then((r) => {
       if (r == null) return;
       streak.current = r > 0 ? 0 : r < 0 ? streak.current + 1 : streak.current;
       curStake.current = Math.min(stake, maxStake); // fixed stake — no martingale
     });
-  }, [auto, busy, prices, status, net, stake, maxStake, riskPercent, balance, maxLoss, takeProfit, maxTrades, lossStreakStop, cooldown, minConf, brainGate, brain, mode, trades.length]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [auto, busy, prices, status, net, stake, maxStake, riskPercent, balance, maxLoss, takeProfit, maxTrades, lossStreakStop, cooldown, minConf, brainGate, brain, mode, trades.length, autoDouble, def.single]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const startAuto = () => {
     if (!account?.isVirtual) { setError("Autopilot is locked to DEMO accounts. Switch to your demo (VRTC) account to run it."); return; }
@@ -587,7 +592,13 @@ function Dashboard() {
                 <input type="range" min={1} max={5} value={sensitivity} onChange={(e) => setSensitivity(Number(e.target.value))} />
               </label>
             )}
-            {def.barrier === "digit" && num(digit, (n) => setDigit(Math.max(0, Math.min(9, Math.round(n)))), "Prediction digit (0-9)")}
+            {def.barrier === "digit" && num(digit, (n) => setDigit(Math.max(0, Math.min(9, Math.round(n)))), kind === "OVER_UNDER" ? "Over digit (1-9)" : "Prediction digit (0-9)")}
+            {kind === "OVER_UNDER" && num(doubleDigit, (n) => setDoubleDigit(Math.max(1, Math.min(9, Math.round(n)))), "Under digit (1-9) — used for double")}
+            {!def.single && (
+              <Button variant="ghost" onClick={() => setAutoDouble((v) => !v)} aria-pressed={autoDouble} className={`rounded border px-3 py-2 text-xs ${autoDouble ? "border-primary bg-primary/20 text-primary" : "border-border text-muted-foreground"}`}>
+                {autoDouble ? "⚡ Double auto execution ON — every signal buys both sides" : "Double auto execution OFF — autopilot buys one side"}
+              </Button>
+            )}
             {def.barrier === "offset" && num(offset, setOffset, "Barrier offset (+/-)", 0.01)}
             {def.barrier === "range" && <>{num(hi, setHi, "High barrier offset (+)", 0.01)}{num(lo, setLo, "Low barrier offset (-)", 0.01)}</>}
             {num(minConf, setMinConf, "Min confidence %")}
