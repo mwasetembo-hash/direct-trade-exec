@@ -260,6 +260,7 @@ function Dashboard() {
     orderLock.current = true;
     setBusy(true);
     const runOne = async (side: 0 | 1): Promise<number | null> => {
+    const sideDigit = pick === "both" && side === 1 ? doubleDigit : digit;
     const ct = def.types[side];
     if (!ctAvailable(ct)) addLog(`Note: ${ct} not listed for ${symbol} — asking Deriv for a quote anyway`);
     const req: Record<string, unknown> = {
@@ -271,10 +272,10 @@ function Dashboard() {
     if (def.extra === "multiplier") { req["multiplier"] = multiplier; req["limit_order"] = { take_profit: tpAmt, stop_loss: slAmt }; }
     if (def.extra === "growth_rate") { req["growth_rate"] = growthRate; req["limit_order"] = { take_profit: tpAmt }; }
     const sgn = (n: number) => (n >= 0 ? `+${n}` : `${n}`);
-    if (def.barrier === "digit") req["barrier"] = String(digit);
+    if (def.barrier === "digit") req["barrier"] = String(sideDigit);
     if (def.barrier === "offset") req["barrier"] = sgn(offset);
     if (def.barrier === "range") { req["barrier"] = sgn(hi); req["barrier2"] = sgn(lo); }
-    const label = `${def.sides[side]}${def.barrier === "digit" ? ` ${digit}` : ""}`;
+    const label = `${def.sides[side]}${def.barrier === "digit" ? ` ${sideDigit}` : ""}`;
     const isRate = (e: any) => /rate limit|RateLimit/i.test(String(e?.message ?? e?.code ?? e));
     const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
     const withBackoff = async <T,>(fn: () => Promise<T>): Promise<T> => {
