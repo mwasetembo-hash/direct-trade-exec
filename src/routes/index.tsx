@@ -15,6 +15,7 @@ import { Activity, Cpu, ShieldCheck, Terminal, Zap } from "lucide-react";
 import terminalEmblem from "@/assets/terminal-emblem.jpeg.asset.json";
 import { ExecutionConsole } from "@/components/ExecutionConsole";
 import { balanceStakeCap, stakeProtection, demoStrategyStats } from "@/lib/trading-session";
+import { canCloseCompanion, dispatchTogether } from "@/lib/paired-execution";
 
 export const Route = createFileRoute("/")({
   head: () => ({
@@ -260,7 +261,27 @@ function Dashboard() {
     if (!c || !account) return null;
     orderLock.current = true;
     setBusy(true);
-    const runOne = async (side: 0 | 1): Promise<number | null> => {
+    const paired = sides.length === 2;
+    const pairIds = new Set<number>();
+    const pairSettled = new Set<number>();
+    const closeRequested = new Set<number>();
+    const closeCompanion = async (id: number) => {
+      if (!paired || !pairSettled.size || pairSettled.has(id) || closeRequested.has(id)) return;
+      closeRequested.add(id);
+      try {
+        const response = await c.send({ proposal_open_contract: 1, contract_id: id });
+        if (canCloseCompanion(response.proposal_open_contract ?? {}, id)) {
+          await c.send({ sell: id, price: 0 });
+          addLog(`PAIR closing companion #${id} — awaiting Deriv settlement`);
+        } else {
+          addLog(`PAIR #${id} cannot be sold now — awaiting Deriv expiry`);
+        }
+      } catch (e: any) {
+        setAuto(false);
+        addLog(`PAIR close not confirmed #${id}: ${e.message}; awaiting settlement`);
+      }
+    };
+    const prepareOrder = (side: 0 | 1) => {
     const sideDigit = pick === "both" && side === 1 ? doubleDigit : digit;
     const ct = def.types[side];
     if (!ctAvailable(ct)) addLog(`Note: ${ct} not listed for ${symbol} — asking Deriv for a quote anyway`);
@@ -277,6 +298,11 @@ function Dashboard() {
     if (def.barrier === "offset") req["barrier"] = sgn(offset);
     if (def.barrier === "range") { req["barrier"] = sgn(hi); req["barrier2"] = sgn(lo); }
     const label = `${def.sides[side]}${def.barrier === "digit" ? ` ${sideDigit}` : ""}`;
+    return { req, label, ct };
+    };
+    // Prepare both sides completely before either buy leaves this browser.
+    const prepared = sides.map(prepareOrder);
+    const buyOrder = async ({ req, ct }: ReturnType<typeof prepareOrder>) => {
     const isRate = (e: any) => /rate limit|RateLimit/i.test(String(e?.message ?? e?.code ?? e));
     const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
     const withBackoff = async <T,>(fn: () => Promise<T>): Promise<T> => {
@@ -289,23 +315,33 @@ function Dashboard() {
         }
       }
     };
-    try {
       // Single-step order: buy directly with parameters (no separate quote step).
       const { proposal: _p, ...params } = req;
       let b: any = null;
       try {
-        b = await withBackoff(() => c.send({ buy: 1, price: Number((amount * 1.05 + 0.01).toFixed(2)), parameters: params }));
+        const send = () => c.send({ buy: 1, price: Number((amount * 1.05 + 0.01).toFixed(2)), parameters: params });
+        b = await (paired ? send() : withBackoff(send));
       } catch (e: any) {
         throw new Error(`${ct} on ${symbol} rejected by Deriv: ${e.message}`);
       }
       const id = Number(b?.buy?.contract_id);
       if (!id) throw new Error("Deriv did not confirm the order");
+      return id;
+    };
+    const trackOrder = async (id: number, label: string): Promise<number | null> => {
+    try {
       setTrades((t) => [{ id, label, stake: amount, profit: null, symbol, setup: directional ? setupId : undefined, demo: account.isVirtual, accountId: account.loginid, time: new Date().toLocaleTimeString() }, ...t]);
       addLog(`BUY ${label} ${amount.toFixed(2)} on ${symbol} #${id}`);
       const result = await new Promise<number | null>((resolve) => {
         let done = false;
         const finish = (v: number | null) => { if (done) return; done = true; off(); clearInterval(poll); clearTimeout(cap); resolve(v); };
-        const check = (poc: any) => { if (poc && Number(poc.contract_id) === id && (poc.is_sold || poc.status === "won" || poc.status === "lost" )) Number.isFinite(Number(poc.profit)) && poc.profit != null && finish(Number(poc.profit)); };
+        const check = (poc: any) => {
+          if (poc && Number(poc.contract_id) === id && (poc.is_sold || poc.status === "won" || poc.status === "lost") && poc.profit != null && Number.isFinite(Number(poc.profit))) {
+            pairSettled.add(id);
+            pairIds.forEach(other => { if (other !== id) void closeCompanion(other); });
+            finish(Number(poc.profit));
+          }
+        };
         const off = c.on("proposal_open_contract", (m) => check(m.proposal_open_contract));
         c.send({ proposal_open_contract: 1, contract_id: id, subscribe: 1 }).then((m) => check(m?.proposal_open_contract)).catch(() => {});
         // Poll every 3s in case the live stream drops; never leave the bot stuck.
@@ -324,8 +360,25 @@ function Dashboard() {
     }
     };
     try {
-      // Both sides are sent at the same moment; each settles independently.
-      const results = await Promise.all(sides.map(runOne));
+      if (paired) addLog(`PAIR dispatch together · ${duration}${unit} per side · Deriv controls exact timing`);
+      const purchases = await dispatchTogether(prepared.map(order => () => buyOrder(order)));
+      purchases.forEach(purchase => { if (purchase.status === "fulfilled") pairIds.add(purchase.value); });
+      const failed = purchases.some(purchase => purchase.status === "rejected");
+      if (failed) {
+        setAuto(false);
+        purchases.forEach(purchase => {
+          if (purchase.status === "rejected") {
+            const message = purchase.reason instanceof Error ? purchase.reason.message : "Order not confirmed";
+            addLog(`Order error: ${message}`);
+            setError(message);
+          }
+        });
+        if (paired && pairIds.size) addLog("PAIR incomplete — autopilot paused; confirmed order remains tracked");
+      }
+      const results = await Promise.all(purchases.map((purchase, i) => {
+        const order = prepared[i];
+        return purchase.status === "fulfilled" && order ? trackOrder(purchase.value, order.label) : Promise.resolve(null);
+      }));
       if (results.some((r) => r === null)) return null;
       return results.reduce<number>((a, r) => a + (r ?? 0), 0);
     } finally { orderLock.current = false; setBusy(false); }
