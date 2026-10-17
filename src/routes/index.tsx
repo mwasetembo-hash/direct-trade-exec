@@ -328,7 +328,7 @@ function Dashboard() {
       if (results.some((r) => r === null)) return null;
       return results.reduce<number>((a, r) => a + (r ?? 0), 0);
     } finally { orderLock.current = false; setBusy(false); }
-  }, [account, duration, unit, symbol, def, digit, offset, hi, lo, selectedTick, multiplier, growthRate, tpAmt, slAmt, available, status, balance, riskPercent, maxStake, trades, prices.length, setupId, directional]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [account, duration, unit, symbol, def, digit, doubleDigit, offset, hi, lo, selectedTick, multiplier, growthRate, tpAmt, slAmt, available, status, balance, riskPercent, maxStake, trades, prices.length, setupId, directional]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     if (!auto || busy || status !== "on") return;
@@ -345,14 +345,16 @@ function Dashboard() {
     if (mode === "SIDE_A" && sig.side !== 0) return wait(`signal is ${def.sides[1]}, you chose ${def.sides[0]} only`);
     if (mode === "SIDE_B" && sig.side !== 1) return wait(`signal is ${def.sides[0]}, you chose ${def.sides[1]} only`);
     const amt = stake;
-    const errors = preflight(sig.side, amt);
+    const both = autoDouble && !def.single;
+    const errors = [...new Set((both ? [0, 1] as const : [sig.side] as const).flatMap((sd) => preflight(sd, amt)))];
+    if (both && balance != null && amt * 2 > balance) errors.push("Both orders together exceed your balance");
     if (errors.length) { setAuto(false); setError(errors.join(" · ")); addLog(`Autopilot paused: ${errors.join("; ")}`); return; }
-    placeTrade(sig.side, amt).then((r) => {
+    placeTrade(both ? "both" : sig.side, amt).then((r) => {
       if (r == null) return;
       streak.current = r > 0 ? 0 : r < 0 ? streak.current + 1 : streak.current;
       curStake.current = Math.min(stake, maxStake); // fixed stake — no martingale
     });
-  }, [auto, busy, prices, status, net, stake, maxStake, riskPercent, balance, maxLoss, takeProfit, maxTrades, lossStreakStop, cooldown, minConf, brainGate, brain, mode, trades.length]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [auto, busy, prices, status, net, stake, maxStake, riskPercent, balance, maxLoss, takeProfit, maxTrades, lossStreakStop, cooldown, minConf, brainGate, brain, mode, trades.length, autoDouble, def.single]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const startAuto = () => {
     if (!account?.isVirtual) { setError("Autopilot is locked to DEMO accounts. Switch to your demo (VRTC) account to run it."); return; }
