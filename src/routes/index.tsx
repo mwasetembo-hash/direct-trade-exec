@@ -628,7 +628,7 @@ function Dashboard() {
               </label>
             )}
             {def.barrier === "digit" && num(digit, (n) => setDigit(Math.max(0, Math.min(9, Math.round(n)))), kind === "OVER_UNDER" ? "Over digit (1-9)" : "Prediction digit (0-9)")}
-            {kind === "OVER_UNDER" && num(doubleDigit, (n) => setDoubleDigit(Math.max(1, Math.min(9, Math.round(n)))), "Under digit (1-9) — used for double")}
+            {kind === "OVER_UNDER" && num(doubleDigit, (n) => setDoubleDigit(Math.max(0, Math.min(9, Math.round(n)))), "Under digit (0-9) — picks the ▼ UNDER line above")}
             {!def.single && (
               <Button variant="ghost" onClick={() => setAutoDouble((v) => !v)} aria-pressed={autoDouble} className={`rounded border px-3 py-2 text-xs ${autoDouble ? "border-primary bg-primary/20 text-primary" : "border-border text-muted-foreground"}`}>
                 {autoDouble ? "⚡ Double auto execution ON — every signal buys both sides" : "Double auto execution OFF — autopilot buys one side"}
