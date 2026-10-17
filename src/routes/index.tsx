@@ -57,6 +57,8 @@ function Dashboard() {
   const [duration, setDuration] = useState(5);
   const [unit, setUnit] = useState<Unit>("t");
   const [digit, setDigit] = useState(5);
+  const [doubleDigit, setDoubleDigit] = useState(5);
+  const [autoDouble, setAutoDouble] = useState(false);
   const [offset, setOffset] = useState(0.5);
   const [hi, setHi] = useState(0.5);
   const [lo, setLo] = useState(-0.5);
@@ -113,9 +115,9 @@ function Dashboard() {
     if (def.single) setMode("SIGNAL");
   }, [kind]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  const settings = { symbol, kind, mode, stake, duration, unit, digit, offset, hi, lo, minConf, maxLoss, takeProfit, maxTrades, lossStreakStop, sensitivity, setupId, cooldown, selectedTick, multiplier, growthRate, tpAmt, slAmt, brainGate, riskPercent, maxStake };
+  const settings = { symbol, kind, mode, stake, duration, unit, digit, doubleDigit, autoDouble, offset, hi, lo, minConf, maxLoss, takeProfit, maxTrades, lossStreakStop, sensitivity, setupId, cooldown, selectedTick, multiplier, growthRate, tpAmt, slAmt, brainGate, riskPercent, maxStake };
   const applySettings = (c: Partial<typeof settings>) => {
-    const set: Record<string, (v: any) => void> = { symbol: setSymbol, kind: setKind, mode: setMode, stake: setStake, duration: setDuration, unit: setUnit, digit: setDigit, offset: setOffset, hi: setHi, lo: setLo, minConf: setMinConf, maxLoss: setMaxLoss, takeProfit: setTakeProfit, maxTrades: setMaxTrades, lossStreakStop: setLossStreakStop, sensitivity: setSensitivity, setupId: setSetupId, cooldown: setCooldown, selectedTick: setSelectedTick, multiplier: setMultiplier, growthRate: setGrowthRate, tpAmt: setTpAmt, slAmt: setSlAmt, brainGate: setBrainGate, riskPercent: setRiskPercent, maxStake: setMaxStake };
+    const set: Record<string, (v: any) => void> = { symbol: setSymbol, kind: setKind, mode: setMode, stake: setStake, duration: setDuration, unit: setUnit, digit: setDigit, doubleDigit: setDoubleDigit, autoDouble: setAutoDouble, offset: setOffset, hi: setHi, lo: setLo, minConf: setMinConf, maxLoss: setMaxLoss, takeProfit: setTakeProfit, maxTrades: setMaxTrades, lossStreakStop: setLossStreakStop, sensitivity: setSensitivity, setupId: setSetupId, cooldown: setCooldown, selectedTick: setSelectedTick, multiplier: setMultiplier, growthRate: setGrowthRate, tpAmt: setTpAmt, slAmt: setSlAmt, brainGate: setBrainGate, riskPercent: setRiskPercent, maxStake: setMaxStake };
     for (const [k, v] of Object.entries(c)) { const setter = set[k]; if (setter && v !== undefined) setter(v); }
   };
 
