@@ -244,6 +244,7 @@ function Dashboard() {
     if (def.ticks && (duration < def.ticks[0] || duration > def.ticks[1])) errs.push(`${def.label} needs ${def.ticks[0]}-${def.ticks[1]} ticks`);
     if (!def.open && !(duration > 0)) errs.push("Duration must be above 0");
     if (def.barrier === "digit" && (digit < 0 || digit > 9)) errs.push("Digit must be 0-9");
+    if (kind === "OVER_UNDER" && (doubleDigit < 0 || doubleDigit > 9)) errs.push("Under digit must be 0-9");
     if (kind === "RUNS" && !/^(R_|1HZ)/.test(symbol)) errs.push("Only Ups/Downs works on Volatility indices (R_ / 1s)");
     if (prices.length < 20) errs.push("Waiting for live ticks");
     return errs;
@@ -509,15 +510,50 @@ function Dashboard() {
             )}
 
             {stats && (
-              <div className="mt-2 grid grid-cols-10 gap-1 text-center font-mono text-xs">
-                {stats.counts.map((c, d) => {
-                  const p = stats.total ? (c / stats.total) * 100 : 0;
-                  return (
-                    <Button variant="ghost" key={d} onClick={() => setDigit(d)} className={`rounded border py-1 ${d === digit ? "border-primary bg-primary/20" : "border-border"} ${p >= 12 ? "text-up" : p <= 8 ? "text-down" : ""}`}>
-                      <div className="font-bold">{d}</div><div>{p.toFixed(0)}%</div>
-                    </Button>
-                  );
-                })}
+              <div className="mt-2 space-y-2">
+                {kind === "OVER_UNDER" ? (
+                  <>
+                    <div>
+                      <div className="mb-1 text-xs text-telemetry">▲ OVER THAN →</div>
+                      <div className="grid grid-cols-10 gap-1 text-center font-mono text-xs">
+                        {stats.counts.map((c, d) => {
+                          const p = stats.total ? (c / stats.total) * 100 : 0;
+                          const over = stats.counts.slice(d + 1).reduce((a, b) => a + b, 0) / (stats.total || 1) * 100;
+                          return (
+                            <Button variant="ghost" key={d} onClick={() => setDigit(d)} aria-pressed={d === digit} className={`rounded border py-1 ${d === digit ? "border-primary bg-primary/20" : "border-border"} ${over >= 55 ? "text-up" : over <= 45 ? "text-down" : ""}`}>
+                              <div className="font-bold">{d}</div><div>{over.toFixed(0)}%</div>
+                            </Button>
+                          );
+                        })}
+                      </div>
+                    </div>
+                    <div>
+                      <div className="mb-1 text-xs text-telemetry">▼ UNDER THAN →</div>
+                      <div className="grid grid-cols-10 gap-1 text-center font-mono text-xs">
+                        {stats.counts.map((c, d) => {
+                          const p = stats.total ? (c / stats.total) * 100 : 0;
+                          const under = stats.counts.slice(0, d).reduce((a, b) => a + b, 0) / (stats.total || 1) * 100;
+                          return (
+                            <Button variant="ghost" key={d} onClick={() => setDoubleDigit(d)} aria-pressed={d === doubleDigit} className={`rounded border py-1 ${d === doubleDigit ? "border-primary bg-primary/20" : "border-border"} ${under >= 55 ? "text-up" : under <= 45 ? "text-down" : ""}`}>
+                              <div className="font-bold">{d}</div><div>{under.toFixed(0)}%</div>
+                            </Button>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  </>
+                ) : (
+                  <div className="grid grid-cols-10 gap-1 text-center font-mono text-xs">
+                    {stats.counts.map((c, d) => {
+                      const p = stats.total ? (c / stats.total) * 100 : 0;
+                      return (
+                        <Button variant="ghost" key={d} onClick={() => setDigit(d)} className={`rounded border py-1 ${d === digit ? "border-primary bg-primary/20" : "border-border"} ${p >= 12 ? "text-up" : p <= 8 ? "text-down" : ""}`}>
+                          <div className="font-bold">{d}</div><div>{p.toFixed(0)}%</div>
+                        </Button>
+                      );
+                    })}
+                  </div>
+                )}
               </div>
             )}
 
@@ -593,7 +629,7 @@ function Dashboard() {
               </label>
             )}
             {def.barrier === "digit" && num(digit, (n) => setDigit(Math.max(0, Math.min(9, Math.round(n)))), kind === "OVER_UNDER" ? "Over digit (1-9)" : "Prediction digit (0-9)")}
-            {kind === "OVER_UNDER" && num(doubleDigit, (n) => setDoubleDigit(Math.max(1, Math.min(9, Math.round(n)))), "Under digit (1-9) — used for double")}
+            {kind === "OVER_UNDER" && num(doubleDigit, (n) => setDoubleDigit(Math.max(0, Math.min(9, Math.round(n)))), "Under digit (0-9) — picks the ▼ UNDER line above")}
             {!def.single && (
               <Button variant="ghost" onClick={() => setAutoDouble((v) => !v)} aria-pressed={autoDouble} className={`rounded border px-3 py-2 text-xs ${autoDouble ? "border-primary bg-primary/20 text-primary" : "border-border text-muted-foreground"}`}>
                 {autoDouble ? "⚡ Double auto execution ON — every signal buys both sides" : "Double auto execution OFF — autopilot buys one side"}
