@@ -244,6 +244,7 @@ function Dashboard() {
     if (def.ticks && (duration < def.ticks[0] || duration > def.ticks[1])) errs.push(`${def.label} needs ${def.ticks[0]}-${def.ticks[1]} ticks`);
     if (!def.open && !(duration > 0)) errs.push("Duration must be above 0");
     if (def.barrier === "digit" && (digit < 0 || digit > 9)) errs.push("Digit must be 0-9");
+    if (kind === "OVER_UNDER" && (doubleDigit < 0 || doubleDigit > 9)) errs.push("Under digit must be 0-9");
     if (kind === "RUNS" && !/^(R_|1HZ)/.test(symbol)) errs.push("Only Ups/Downs works on Volatility indices (R_ / 1s)");
     if (prices.length < 20) errs.push("Waiting for live ticks");
     return errs;
