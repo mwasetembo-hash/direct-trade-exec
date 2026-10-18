@@ -1,5 +1,5 @@
-import { liveDashboard, describe, expect, it } from "vitest";
-import { balanceStakeCap, demoStrategyStats, stakeProtection } from "./trading-session";
+import { describe, expect, it } from "vitest";
+import { liveDashboard, balanceStakeCap, demoStrategyStats, stakeProtection } from "./trading-session";
 
 describe("balance-based account protection", () => {
   it("caps a 100 balance at 1 when risk is 1 percent", () => expect(balanceStakeCap(100, 1, 10)).toBe(1));
