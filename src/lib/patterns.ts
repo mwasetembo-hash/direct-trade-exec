@@ -1,3 +1,4 @@
+import { vamodSetup } from "./vamod";
 // Pattern engine: turns ticks into candles and scores chart, candlestick,
 // market-structure, SMC and indicator patterns. Runs in well under a millisecond.
 // Output is an estimate from past prices, never a guarantee.
@@ -221,11 +222,12 @@ export function efficiency(prices: number[], n = 100) {
   return path ? Math.abs(w.at(-1)! - w[0]!) / path : 0;
 }
 
-export type SetupId = "A" | "B" | "C";
+export type SetupId = "A" | "B" | "C" | "D";
 export const SETUPS: Record<SetupId, string> = {
   A: "Trend-Confirmed Pattern",
   B: "Trendline Breakout-Retest",
   C: "Fib Pullback + Support",
+  D: "VA-MOD Volume Hybrid",
 };
 
 /**
@@ -268,7 +270,8 @@ export function trendlineSetup(prices: number[], sensitivity = 3): Setup {
   return { side, confidence: conf, note: `Setup B ${side === 0 ? "▲" : "▼"} CONFIRMED: trendline holding + ${names}`, checks };
 }
 
-export function runSetup(id: SetupId, prices: number[], sensitivity = 3): Setup {
+export function runSetup(id: SetupId, prices: number[], sensitivity = 3, opts: { weight?: number; threshold?: number } = {}): Setup {
+  if (id === "D") return vamodSetup(prices, sensitivity, opts.weight ?? 60, opts.threshold ?? 70);
   if (id === "C") return fibSetup(prices, sensitivity);
   return id === "B" ? trendlineSetup(prices, sensitivity) : patternSetup(prices, sensitivity);
 }
