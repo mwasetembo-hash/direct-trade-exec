@@ -33,7 +33,7 @@ export const Route = createFileRoute("/")({
 });
 
 type Mode = "SIDE_A" | "SIDE_B" | "SIGNAL";
-type Trade = { id: number; label: string; stake: number; profit: number | null; symbol: string; time: string; setup?: string | undefined; demo?: boolean; accountId?: string; openedAt?: number; settledAt?: number };
+type Trade = { id: number; label: string; stake: number; profit: number | null; symbol: string; time: string; setup?: string | undefined; demo?: boolean; accountId?: string; openedAt?: number | undefined; settledAt?: number | undefined };
 type ScanRow = { symbol: string; name: string; group: string; trend: number; conf: number; dir: string };
 type Unit = "t" | "s" | "m";
 
