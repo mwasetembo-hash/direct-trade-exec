@@ -14,6 +14,7 @@ import { Button } from "@/components/ui/button";
 import { Activity, Cpu, ShieldCheck, Terminal, Zap } from "lucide-react";
 import terminalEmblem from "@/assets/terminal-emblem.jpeg.asset.json";
 import { ExecutionConsole } from "@/components/ExecutionConsole";
+import { LiveDashboard } from "@/components/LiveDashboard";
 import { balanceStakeCap, stakeProtection, demoStrategyStats } from "@/lib/trading-session";
 import { canCloseCompanion, dispatchTogether } from "@/lib/paired-execution";
 
@@ -32,7 +33,7 @@ export const Route = createFileRoute("/")({
 });
 
 type Mode = "SIDE_A" | "SIDE_B" | "SIGNAL";
-type Trade = { id: number; label: string; stake: number; profit: number | null; symbol: string; time: string; setup?: string | undefined; demo?: boolean; accountId?: string };
+type Trade = { id: number; label: string; stake: number; profit: number | null; symbol: string; time: string; setup?: string | undefined; demo?: boolean; accountId?: string; openedAt?: number | undefined; settledAt?: number | undefined };
 type ScanRow = { symbol: string; name: string; group: string; trend: number; conf: number; dir: string };
 type Unit = "t" | "s" | "m";
 
@@ -330,7 +331,7 @@ function Dashboard() {
     };
     const trackOrder = async (id: number, label: string): Promise<number | null> => {
     try {
-      setTrades((t) => [{ id, label, stake: amount, profit: null, symbol, setup: directional ? setupId : undefined, demo: account.isVirtual, accountId: account.loginid, time: new Date().toLocaleTimeString() }, ...t]);
+      setTrades((t) => [{ id, label, stake: amount, profit: null, symbol, setup: directional ? setupId : undefined, demo: account.isVirtual, accountId: account.loginid, time: new Date().toLocaleTimeString(), openedAt: Date.now() }, ...t]);
       addLog(`BUY ${label} ${amount.toFixed(2)} on ${symbol} #${id}`);
       const result = await new Promise<number | null>((resolve) => {
         let done = false;
@@ -350,7 +351,7 @@ function Dashboard() {
       });
       if (result === null) return null;
       lastSettle.current = Date.now();
-      setTrades((t) => t.map((x) => (x.id === id ? { ...x, profit: result } : x)));
+      setTrades((t) => t.map((x) => (x.id === id ? { ...x, profit: result, settledAt: result === null ? undefined : Date.now() } : x)));
       addLog(`${result > 0 ? "WIN" : result < 0 ? "LOSS" : "FLAT"} #${id}: ${result.toFixed(2)}`);
       return result;
     } catch (e: any) {
@@ -429,7 +430,7 @@ function Dashboard() {
         const contract = response.proposal_open_contract;
         if (contract && (contract.is_sold || contract.status === "won" || contract.status === "lost") && contract.profit != null && Number.isFinite(Number(contract.profit))) {
           const profit = Number(contract.profit);
-          setTrades(rows => rows.map(t => t.id === trade.id ? { ...t, profit } : t));
+          setTrades(rows => rows.map(t => t.id === trade.id ? { ...t, profit, settledAt: profit === null ? undefined : Date.now() } : t));
           streak.current = profit > 0 ? 0 : profit < 0 ? streak.current + 1 : streak.current;
           lastSettle.current = Date.now();
           addLog(`Settlement confirmed #${trade.id}: ${profit.toFixed(2)}`);
@@ -490,6 +491,7 @@ function Dashboard() {
         </div>
       </section>
       <main className="terminal-workspace mx-auto grid max-w-7xl grid-cols-1 items-start [&>*]:min-w-0 gap-4 p-4 lg:grid-cols-3">
+        <LiveDashboard trades={trades} accountId={account?.loginid} balance={balance} currency={account?.currency} demo={account?.isVirtual ?? false} />
         <ExecutionConsole trades={trades} accountId={account?.loginid} demo={account?.isVirtual ?? false} connected={status === "on"} auto={auto} busy={busy} balance={balance} riskPercent={riskPercent} maxStake={maxStake} setupId={setupId} setups={liveSetups} onSelect={setSetupId} onReconcile={reconcileOrders} reconciling={reconciling} />
         <section className="space-y-3 glass rounded-sm p-4">
           <h2 className="font-semibold">Deriv connection</h2>
