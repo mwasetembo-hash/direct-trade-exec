@@ -28,7 +28,7 @@ export function ExecutionConsole(p: Props) {
       <div><Activity size={17} className="mb-2 text-primary" /><div className="text-muted-foreground">CONFIRMED SESSION P/L</div><div className={`mt-1 text-base ${net < 0 ? "text-down" : "text-up"}`}>{settled.length ? net.toFixed(2) : "—"}</div></div>
     </div>
     <div className="mb-3 flex flex-wrap items-center justify-between gap-3"><h3 className="text-sm font-semibold">Demo strategy comparison</h3><span className="text-xs text-muted-foreground">{p.demo ? "CURRENT DEMO ACCOUNT · SESSION ONLY" : "DEMO ACCOUNT REQUIRED FOR RESULTS"}</span></div>
-    <div className="grid gap-3 lg:grid-cols-3">
+    <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
       {(Object.keys(SETUPS) as SetupId[]).map(id => {
         const s = demoStrategyStats(p.trades, id, p.accountId);
         const setup = p.setups[id];

@@ -49,3 +49,10 @@ describe("setup C fib pullback", () => {
   it("never fires in a flat market", () => { expect(fibSetup(flat).side).toBe(null); });
   it("never fires against the trend", () => { expect(fibSetup(upT).side).not.toBe(1); });
 });
+
+import { vamodSetup, volumeProfile } from "./vamod";
+describe("VA-MOD setup D", () => {
+  it("waits on a flat market", () => expect(vamodSetup(Array.from({ length: 200 }, (_, i) => 100 + (i % 2) * 0.01)).side).toBeNull());
+  it("never fires below the confluence threshold", () => { const up = Array.from({ length: 200 }, (_, i) => 100 + i * 0.1 + Math.sin(i) * 0.05); expect(vamodSetup(up, 3, 60, 101).side).toBeNull(); });
+  it("POC sits where most ticks traded", () => { const p = [...Array(80).fill(100), ...Array.from({ length: 20 }, (_, i) => 101 + i)]; const vp = volumeProfile(p)!; expect(Math.abs(vp.poc - 100)).toBeLessThan(1); });
+});
