@@ -15,6 +15,7 @@ import { Activity, Cpu, ShieldCheck, Terminal, Zap } from "lucide-react";
 import terminalEmblem from "@/assets/terminal-emblem.jpeg.asset.json";
 import { ExecutionConsole } from "@/components/ExecutionConsole";
 import { LiveDashboard } from "@/components/LiveDashboard";
+import { MarketDepth } from "@/components/MarketDepth";
 import { balanceStakeCap, stakeProtection, demoStrategyStats } from "@/lib/trading-session";
 import { canCloseCompanion, dispatchTogether } from "@/lib/paired-execution";
 
@@ -66,6 +67,9 @@ function Dashboard() {
   const [lo, setLo] = useState(-0.5);
   const [minConf, setMinConf] = useState(0);
   const [sensitivity, setSensitivity] = useState(3);
+  const [vaWeight, setVaWeight] = useState(60);
+  const [vaThreshold, setVaThreshold] = useState(70);
+  const [tickTimes, setTickTimes] = useState<number[]>([]);
   const [setupId, setSetupId] = useState<SetupId>("A");
   const [cooldown, setCooldown] = useState(0);
   const [selectedTick, setSelectedTick] = useState(3);
@@ -117,9 +121,9 @@ function Dashboard() {
     if (def.single) setMode("SIGNAL");
   }, [kind]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  const settings = { symbol, kind, mode, stake, duration, unit, digit, doubleDigit, autoDouble, offset, hi, lo, minConf, maxLoss, takeProfit, maxTrades, lossStreakStop, sensitivity, setupId, cooldown, selectedTick, multiplier, growthRate, tpAmt, slAmt, brainGate, riskPercent, maxStake };
+  const settings = { symbol, kind, mode, stake, duration, unit, digit, doubleDigit, autoDouble, offset, hi, lo, minConf, maxLoss, takeProfit, maxTrades, lossStreakStop, sensitivity, setupId, vaWeight, vaThreshold, cooldown, selectedTick, multiplier, growthRate, tpAmt, slAmt, brainGate, riskPercent, maxStake };
   const applySettings = (c: Partial<typeof settings>) => {
-    const set: Record<string, (v: any) => void> = { symbol: setSymbol, kind: setKind, mode: setMode, stake: setStake, duration: setDuration, unit: setUnit, digit: setDigit, doubleDigit: setDoubleDigit, autoDouble: setAutoDouble, offset: setOffset, hi: setHi, lo: setLo, minConf: setMinConf, maxLoss: setMaxLoss, takeProfit: setTakeProfit, maxTrades: setMaxTrades, lossStreakStop: setLossStreakStop, sensitivity: setSensitivity, setupId: setSetupId, cooldown: setCooldown, selectedTick: setSelectedTick, multiplier: setMultiplier, growthRate: setGrowthRate, tpAmt: setTpAmt, slAmt: setSlAmt, brainGate: setBrainGate, riskPercent: setRiskPercent, maxStake: setMaxStake };
+    const set: Record<string, (v: any) => void> = { symbol: setSymbol, kind: setKind, mode: setMode, stake: setStake, duration: setDuration, unit: setUnit, digit: setDigit, doubleDigit: setDoubleDigit, autoDouble: setAutoDouble, offset: setOffset, hi: setHi, lo: setLo, minConf: setMinConf, maxLoss: setMaxLoss, takeProfit: setTakeProfit, maxTrades: setMaxTrades, lossStreakStop: setLossStreakStop, sensitivity: setSensitivity, setupId: setSetupId, vaWeight: setVaWeight, vaThreshold: setVaThreshold, cooldown: setCooldown, selectedTick: setSelectedTick, multiplier: setMultiplier, growthRate: setGrowthRate, tpAmt: setTpAmt, slAmt: setSlAmt, brainGate: setBrainGate, riskPercent: setRiskPercent, maxStake: setMaxStake };
     for (const [k, v] of Object.entries(c)) { const setter = set[k]; if (setter && v !== undefined) setter(v); }
   };
 
@@ -130,7 +134,7 @@ function Dashboard() {
   const sig = kindSignal(kind, prices, decimals, { digit, offset, hi, lo, ticks: ticksEq, sensitivity });
   const directional = ["RUNS", "RISE_FALL", "HIGHER_LOWER", "ASIANS", "RESET", "MULT"].includes(kind);
   const pat = directional ? analyzePatterns(prices, sensitivity) : null;
-  const liveSetups = { A: runSetup("A", prices, sensitivity), B: runSetup("B", prices, sensitivity), C: runSetup("C", prices, sensitivity) };
+  const liveSetups = { A: runSetup("A", prices, sensitivity), B: runSetup("B", prices, sensitivity), C: runSetup("C", prices, sensitivity), D: runSetup("D", prices, sensitivity, { weight: vaWeight, threshold: vaThreshold }) };
   const setup = directional ? liveSetups[setupId] : null;
   // Directional contracts trade ONLY the single trend-confirmed pattern setup.
   if (setup) { sig.side = setup.side; sig.confidence = setup.confidence; sig.note = setup.note; }
@@ -178,7 +182,7 @@ function Dashboard() {
         });
         if (live.length) setInstruments(live);
       } catch (e: any) { addLog(`Symbols list error: ${e.message} — using built-in list`); }
-      c.on("tick", (m) => { if (m.tick?.symbol === undefined || m.tick.symbol === symbolRef.current) setPrices((p) => [...p, Number(m.tick.quote)].slice(-500)); });
+      c.on("tick", (m) => { if (m.tick?.symbol === undefined || m.tick.symbol === symbolRef.current) { setPrices((p) => [...p, Number(m.tick.quote)].slice(-500)); setTickTimes((t) => [...t, Date.now()].slice(-120)); } });
       setStatus("on");
       addLog(`Connected ${acc.account_id} (${isVirtual ? "DEMO" : "REAL"})`);
     } catch (e: any) {
@@ -197,6 +201,7 @@ function Dashboard() {
       if (tickSub.current) await c.send({ forget: tickSub.current }).catch(() => {});
       tickSub.current = null;
       setPrices([]);
+      setTickTimes([]);
       try {
         const h = await c.send({ ticks_history: symbol, count: 500, end: "latest", style: "ticks" });
         setPrices((h.history.prices as number[]).map(Number));
@@ -491,6 +496,7 @@ function Dashboard() {
         </div>
       </section>
       <main className="terminal-workspace mx-auto grid max-w-7xl grid-cols-1 items-start [&>*]:min-w-0 gap-4 p-4 lg:grid-cols-3">
+        <MarketDepth prices={prices} times={tickTimes} />
         <LiveDashboard trades={trades} accountId={account?.loginid} balance={balance} currency={account?.currency} demo={account?.isVirtual ?? false} />
         <ExecutionConsole trades={trades} accountId={account?.loginid} demo={account?.isVirtual ?? false} connected={status === "on"} auto={auto} busy={busy} balance={balance} riskPercent={riskPercent} maxStake={maxStake} setupId={setupId} setups={liveSetups} onSelect={setSetupId} onReconcile={reconcileOrders} reconciling={reconciling} />
         <section className="space-y-3 glass rounded-sm p-4">
@@ -678,6 +684,14 @@ function Dashboard() {
                 </div>
               </div>
             )}
+            {directional && setupId === "D" && (<>
+              <label className="col-span-2 flex flex-col gap-1 text-xs text-muted-foreground">VA-MOD volume weight: {vaWeight}% (patterns {100 - vaWeight}%)
+                <input type="range" min={40} max={80} step={5} value={vaWeight} onChange={(e) => setVaWeight(Number(e.target.value))} aria-label="VA-MOD volume weight" />
+              </label>
+              <label className="col-span-2 flex flex-col gap-1 text-xs text-muted-foreground">Confluence needed: {vaThreshold}%
+                <input type="range" min={40} max={95} step={5} value={vaThreshold} onChange={(e) => setVaThreshold(Number(e.target.value))} aria-label="Confluence threshold" />
+              </label>
+            </>)}
             {kind === "RUNS" && (
               <label className="col-span-2 flex flex-col gap-1 text-xs text-muted-foreground">Sensitivity: {["", "Very careful", "Careful", "Balanced", "Sensitive", "Very sensitive"][sensitivity]}
                 <input type="range" min={1} max={5} value={sensitivity} onChange={(e) => setSensitivity(Number(e.target.value))} />
